@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <string.h>
 #include <time.h>
 #include <limits.h>
@@ -48,7 +49,18 @@
 #define PATH_PCI	 "/dev/pci"
 #define PATH_DEVD_SOCKET "/var/run/devd.pipe"
 
-typedef enum { false, true } bool;
+#define IFCONFIG_CMD	 "ifconfig_%s=\"DHCP up\" /etc/rc.d/dhclient " \
+			 "quietstart %s"
+
+struct devd_event_s {
+	int  system;
+#define DEVD_SYSTEM_IFNET 1
+#define DEVD_SYSTEM_USB	  2
+	int  type;
+#define DEVD_TYPE_ATTACH  1
+	char *cdev;
+	char *subsystem;
+} devdevent;
 
 /*
  * Relevant USB-interface info.
@@ -83,11 +95,13 @@ static devinfo_t *devlst = NULL;	/* List of devices. */
 
 static int	 get_usb_devs(void);
 static int	 get_pci_devs(void);
-static bool	 usbdev_attached(char *);
 static bool	 is_new(u_short, u_short, u_short, u_short);
 static bool	 match_ifsubclass(const devinfo_t *, u_short);
 static bool	 match_ifclass(const devinfo_t *, u_short);
 static bool	 match_protocol(const devinfo_t *, u_short);
+static bool	 parse_devd_event(char *);
+static void	 deamonize(void);
+static void	 netstart(const char *);
 static void	 add_iface(devinfo_t *, u_short, u_short, u_short);
 static void	 load_driver(const devinfo_t *);
 static void	 logprint(const char *, ...);
@@ -100,20 +114,24 @@ static devinfo_t *add_device(void);
 int
 main(int argc, char *argv[])
 {
-	int    ch, i, n;
+	int    ch, i, n, tries;
 	FILE   *fp, *s;
-	bool   fflag, newdev;
+	bool   fflag, uflag, newdev;
 	char   ln[_POSIX2_LINE_MAX], *p;
 	fd_set rset;
+	struct timeval tv, *tp;
 
-	fflag = dryrun = false;
-	while ((ch = getopt(argc, argv, "fnhx:")) != -1) {
+	fflag = dryrun = uflag = false;
+	while ((ch = getopt(argc, argv, "fnhux:")) != -1) {
 		switch (ch) {
 		case 'f':
 			fflag = true;
 			break;
 		case 'n':
 			dryrun = true;
+			break;
+		case 'u':
+			uflag = true;
 			break;
 		case 'x':
 			for (i = 0, p = optarg; i < MAX_EXCLUDES - 1 &&
@@ -176,39 +194,51 @@ main(int argc, char *argv[])
 	for (i = 0; i < ndevs; i++)
 		load_driver(&devlst[i]);
 
-	if (!fflag) {
-		/* Deamonize. */
-		for (i = 0; i < 2; i++) {
-			switch (fork()) {
-			case -1:
-				err(EXIT_FAILURE, "fork()");
-			case  0:
-				break;
-			default:
-				exit(EXIT_SUCCESS);
-			}
-			if (i == 0) {
-				(void)setsid();
-				(void)signal(SIGHUP, SIG_IGN);
-			}
-		}
-	}
 	/* Write our PID to the PID/lock file. */
 	(void)fprintf(fp, "%d", getpid());
 	(void)fflush(fp);
 
-	for (newdev = false; ; newdev = false) {
+	tv.tv_sec = 1; tv.tv_usec = 0; tp = &tv;
+	for (tries = 0, newdev = false; ; newdev = false) {
 		FD_ZERO(&rset);
 		FD_SET(fileno(s), &rset);
-		if (select(fileno(s) + 1, &rset, NULL, NULL, NULL) == -1) {
+		if (select(fileno(s) + 1, &rset, NULL, NULL, tp) == -1) {
 			if (errno == EINTR)
 				continue;
 			else
 				err(EXIT_FAILURE, "select()");
 		} else {
-                        while (fgets(ln, _POSIX2_LINE_MAX, s) != NULL) {
-				if (usbdev_attached(ln))
+			/* 
+			 * In case we loaded the driver of an ethernet device,
+			 * we wait one second to see if it appears. If that's
+			 * the case, we try to bring up the ethernet device
+			 * before we become a deamon. This delays the start of
+			 * services that depend on a network connection, until
+			 * we started dhclient on the device.
+			 */
+			if (tries > 0) {
+				/* Use blocking select() from now. */
+				tp = NULL;
+				if (!fflag)
+					deamonize();
+			} else {
+				tries++;
+				/* In case we want more than one try. */
+				tv.tv_sec = 1; tv.tv_usec = 0;
+			}
+			while (fgets(ln, _POSIX2_LINE_MAX, s) != NULL) {
+				if (!parse_devd_event(ln))
+					continue;
+				if (devdevent.type != DEVD_TYPE_ATTACH)
+					continue;
+				switch (devdevent.system) {
+				case DEVD_SYSTEM_IFNET:
+					if (uflag && !dryrun)
+						netstart(devdevent.subsystem);
+					break;
+				case DEVD_SYSTEM_USB:
 					newdev = true;
+				}
 			}
 			if (newdev) {
 				n = get_usb_devs();
@@ -225,7 +255,7 @@ static void
 usage()
 {
 	printf("Usage: %s [-h]\n" \
-	       "       %s [-fn][-x driver,...]\n", PROGRAM, PROGRAM);
+	       "       %s [-fnu][-x driver,...]\n", PROGRAM, PROGRAM);
 	exit(EXIT_FAILURE);
 }
 
@@ -260,6 +290,27 @@ logprintx(const char *fmt, ...)
 	(void)fprintf(logfp, "%s: %s\n", tm, msgbuf);
 }
 
+static void
+deamonize()
+{
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		switch (fork()) {
+		case -1:
+			err(EXIT_FAILURE, "fork()");
+		case  0:
+			break;
+		default:
+			exit(EXIT_SUCCESS);
+		}
+		if (i == 0) {
+			(void)setsid();
+			(void)signal(SIGHUP, SIG_IGN);
+		}
+	}
+}
+
 static FILE *
 uconnect(const char *path)
 {
@@ -284,22 +335,52 @@ uconnect(const char *path)
 }
 
 static bool
-usbdev_attached(char *str)
+parse_devd_event(char *str)
 {
 	char *p, *q;
 
+	devdevent.cdev = devdevent.subsystem = "";
 	if (str[0] != '!')
 		return (false);
 	for (p = str + 1; (p = strtok(p, " \n")) != NULL; p = NULL) {
 		if ((q = strchr(p, '=')) == NULL)
 			continue;
 		*q++ = '\0';
-		if (strcmp(p, "system") == 0 && strcmp(q, "USB") != 0)
-			return (false);
-		else if (strcmp(p, "type") == 0 && strcmp(q, "ATTACH") != 0)
-			return (false);
-	}
+		if (strcmp(p, "system") == 0) {
+			if (strcmp(q, "IFNET") == 0)
+				devdevent.system = DEVD_SYSTEM_IFNET;
+			else if (strcmp(q, "USB") == 0)
+				devdevent.system = DEVD_SYSTEM_USB;
+			else
+				devdevent.system = -1;
+		} else if (strcmp(p, "subsystem") == 0) {
+			devdevent.subsystem = q;
+		} else if (strcmp(p, "type") == 0) {
+			if (strcmp(q, "ATTACH") == 0)
+				devdevent.type = DEVD_TYPE_ATTACH;
+			else
+				devdevent.type = -1;
+		} else if (strcmp(p, "cdev") == 0)
+			devdevent.cdev = q;
+        }
 	return (true);
+}
+
+static void
+netstart(const char *ifdev)
+{
+	char cmd[512];
+
+	/* Bring up new ethernet devices, and start dhclient */
+	logprintx("Bringing up %s", ifdev);
+	(void)snprintf(cmd, sizeof(cmd) - 1, IFCONFIG_CMD, ifdev, ifdev);
+	switch (system(cmd)) {
+	case   0:
+		break;
+	case  -1:
+	case 127:
+		logprint("system(%s)", cmd);
+	}
 }
 
 static devinfo_t *
