@@ -1,33 +1,44 @@
-.TH dsbdriverd 8 "@YEAR@" "version @VERSION@" "DSBDriverd"
-.SH NAME
-.B dsbdriverd
-\(em A device driver loading daemon
-.SH SYNOPSIS
-.nf
-\fBdsbdriverd\fP [\fB-fn\fP][\fB-x\fP \fIdriver,...\fP]
-.fi
-.SH DESCRIPTION
-\fBdsbdriverd\fP is a daemon that automatically tries to find and load the
-suitable driver for your PCI and USB hardware. On startup \fBdsbdriverd\fP
+.Dd $Mdocdate$
+.Dt DSBDriverd 8
+.Os
+.Sh NAME
+.Nm dsbdriverd
+.Nd A device driver loading daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl fnu
+.Op Fl x Ar driver, ...
+.Sh DESCRIPTION
+.Nm
+is a daemon that automatically tries to find and load the
+suitable driver for your PCI and USB hardware. On startup
+.Nm
 scans the PCI and US(B) bus for all connected devices and looks up their
 driver in a database using information provided by the hardware. The same
 applies to USB devices attached to the system later at runtime.
-.SH OPTIONS
-.TP
-.B -f
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl f
 Run in foreground.
-.TP
-.B -n
+.It Fl n
 Just show what would be done, but do not load any drivers.
-.TP
-.B -x
-Exclude every \fIdriver\fP in the comma separated list from loading.
-.SH FILES
-.nf
-@PATH_DB@
-@PATH_LOG@
-.fi
-.SH AUTHOR
-.PD 0
-Marcel Kaiser <mk@nic-nac-project.org>
+.It Fl u
+Start
+.Xr dhclient 8
+on ethernet devices that appeared after loading the corresponding driver.
+.It Fl x
+Exclude every
+.Ar driver
+in the comma separated list from loading.
+.El
+.Sh FILES
+.Bl -tag -width @PATH_DB@ -compact
+.It Pa @PATH_DB@
+Driver database
+.It Pa @PATH_LOG@
+Logfile
+.El
+.Sh AUTHOR
+.An Marcel Kaiser <mk@nic-nac-project.org>
 
