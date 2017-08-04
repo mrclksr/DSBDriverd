@@ -1,0 +1,59 @@
+.Dd $Mdocdate$
+.Dt DSBDriverd 8
+.Os
+.Sh ABOUT
+.Nm dsbdriverd
+is a daemon that automatically tries to find and load the
+suitable driver for your PCI and USB hardware. On startup
+.Nm
+scans the PCI and US(B) bus for all connected devices and looks up their
+driver in a database using information provided by the hardware. The same
+applies to USB devices attached to the system later at runtime.
+.Sh INSTALLATION
+.Bd -literal -offset indent
+# git clone https://github.com/mrclksr/DSBDriverd.git
+# cd DSBDriverd && make install
+.Ed
+.Sh USAGE
+.Nm
+.Op Fl fnu
+.Op Fl x Ar driver, ...
+.Sh OPTIONS
+.Bl -tag -width indent
+.It Fl f
+Run in foreground.
+.It Fl n
+Just show what would be done, but do not load any drivers.
+.It Fl u
+Start
+.Xr dhclient 8
+on ethernet devices that appeared after loading the corresponding driver.
+.It Fl x
+Exclude every
+.Ar driver
+in the comma separated list from loading.
+.El
+.Sh SETUP
+In oder to start
+.Nm
+at boot time, add the following line to
+.Em  /etc/rc.conf :
+.Bd -literal -offset indent
+dsbdriverd_enable="YES"
+.Ed
+.Pp
+In addtion you can specify flags using the
+.Em dsbdriverd_flags
+variable. If you want
+.Nm
+to automatically start
+.Xr dhclient 8
+on your ethernet devices for which it loaded the corresponding drivers,
+you can set
+.Bd -literal -offset indent
+dsbdriverd_flags="-u"
+.Ed
+.Pp
+in
+.Em  /etc/rc.conf
+
