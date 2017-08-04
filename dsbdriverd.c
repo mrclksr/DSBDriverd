@@ -46,6 +46,9 @@
 #define MAX_PCI_DEVS	 32
 #define MAX_EXCLUDES	 256
 
+#define SOCK_ERR_CONN_CLOSED    1
+#define SOCK_ERR_IO_ERROR       2
+
 #define PATH_PCI	 "/dev/pci"
 #define PATH_DEVD_SOCKET "/var/run/devd.pipe"
 
@@ -93,6 +96,8 @@ static FILE	 *logfp = NULL;		/* File pointer for logprint(). */
 static char	 *exclude[MAX_EXCLUDES];/* List of drivers to exclude. */
 static devinfo_t *devlst = NULL;	/* List of devices. */
 
+static int	 uconnect(const char *);
+static int	 devd_connect(void);
 static int	 get_usb_devs(void);
 static int	 get_pci_devs(void);
 static bool	 is_new(u_short, u_short, u_short, u_short);
@@ -107,17 +112,17 @@ static void	 load_driver(const devinfo_t *);
 static void	 logprint(const char *, ...);
 static void	 logprintx(const char *, ...);
 static void	 usage(void);
-static FILE	 *uconnect(const char *);
+static char	 *read_devd_event(int, int *);
 static char	 *find_driver(const devinfo_t *);
 static devinfo_t *add_device(void);
 
 int
 main(int argc, char *argv[])
 {
-	int    ch, i, n, tries;
-	FILE   *fp, *s;
+	int    ch, error, i, n, s, tries;
+	FILE   *fp;
 	bool   fflag, uflag, newdev;
-	char   ln[_POSIX2_LINE_MAX], *p;
+	char   *ln, *p;
 	fd_set rset;
 	struct timeval tv, *tp;
 
@@ -182,7 +187,7 @@ main(int argc, char *argv[])
 		/* For warn(), err(), etc. */
 		err_set_file(logfp);
 	}
-	if ((s = uconnect(PATH_DEVD_SOCKET)) == NULL)
+	if ((s = devd_connect()) == -1)
 		err(EXIT_FAILURE, "Couldn't connect to %s", PATH_DEVD_SOCKET);
 	if ((db = fopen(PATH_DRIVERS_DB, "r")) == NULL)
 		err(EXIT_FAILURE, "fopen(%s)", PATH_DRIVERS_DB);
@@ -201,8 +206,8 @@ main(int argc, char *argv[])
 	tv.tv_sec = 1; tv.tv_usec = 0; tp = &tv;
 	for (tries = 0, newdev = false; ; newdev = false) {
 		FD_ZERO(&rset);
-		FD_SET(fileno(s), &rset);
-		if (select(fileno(s) + 1, &rset, NULL, NULL, tp) == -1) {
+		FD_SET(s, &rset);
+		if (select(s + 1, &rset, NULL, NULL, tp) == -1) {
 			if (errno == EINTR)
 				continue;
 			else
@@ -210,7 +215,7 @@ main(int argc, char *argv[])
 		} else {
 			/* 
 			 * In case we loaded the driver of an ethernet device,
-			 * we wait one second to see if it appears. If that's
+			 * we wait two seconds to see if it appears. If that's
 			 * the case, we try to bring up the ethernet device
 			 * before we become a deamon. This delays the start of
 			 * services that depend on a network connection, until
@@ -226,7 +231,7 @@ main(int argc, char *argv[])
 				/* In case we want more than one try. */
 				tv.tv_sec = 1; tv.tv_usec = 0;
 			}
-			while (fgets(ln, _POSIX2_LINE_MAX, s) != NULL) {
+			while ((ln = read_devd_event(s, &error)) != NULL) {
 				if (!parse_devd_event(ln))
 					continue;
 				if (devdevent.type != DEVD_TYPE_ATTACH)
@@ -245,6 +250,18 @@ main(int argc, char *argv[])
 				for (i = ndevs - n; i < ndevs; i++)
 					load_driver(&devlst[i]);
 			}
+			if (error == SOCK_ERR_CONN_CLOSED) {
+				/* Lost connection to devd. */
+				(void)close(s);
+				logprintx("Lost connection to devd. " \
+				    "Reconnecting ...");
+				if ((s = devd_connect()) == -1) {
+					logprintx("Connecting to devd " \
+					    "failed. Giving up.");
+					exit(EXIT_FAILURE);
+				}
+			} else if (error == SOCK_ERR_IO_ERROR)
+				err(EXIT_FAILURE, "read_devd_event()");
 		}
 	}
 	/* NOTREACHED */
@@ -311,27 +328,86 @@ deamonize()
 	}
 }
 
-static FILE *
+static int
 uconnect(const char *path)
 {
-	int                s;
-	FILE              *sp;
+	int s;
 	struct sockaddr_un saddr;
 
 	if ((s = socket(PF_LOCAL, SOCK_STREAM, 0)) == -1)
-		return (NULL);
+		return (-1);
 	(void)memset(&saddr, (unsigned char)0, sizeof(saddr));
 	(void)snprintf(saddr.sun_path, sizeof(saddr.sun_path), "%s", path);
 	saddr.sun_family = AF_LOCAL;
 	if (connect(s, (struct sockaddr *)&saddr, sizeof(saddr)) == -1)
-		return (NULL);
-	if ((sp = fdopen(s, "r+")) == NULL)
-		return (NULL);
-	/* Make the stream line buffered, and the socket non-blocking. */
-	if (setvbuf(sp, NULL, _IOLBF, 0) == -1 ||
-	    fcntl(s, F_SETFL, fcntl(s, F_GETFL) | O_NONBLOCK) == -1)
-		return (NULL);
-	return (sp);
+		return (-1);
+	if (fcntl(s, F_SETFL, fcntl(s, F_GETFL) | O_NONBLOCK) == -1)
+		return (-1);
+	return (s);
+}
+
+static int
+devd_connect()
+{
+	int  i, s;
+
+	for (i = 0, s = -1; i < 30 && s == -1; i++) {
+		if ((s = uconnect(PATH_DEVD_SOCKET)) == -1)
+			(void)sleep(1);
+	}
+	return (s);
+}
+
+static char *
+read_devd_event(int s, int *error)
+{
+	int  i, n;
+	static char *lnbuf = NULL;
+	static int rd = 0, bufsz = 0, slen = 0;
+
+	if (lnbuf == NULL) {
+		if ((lnbuf = malloc(_POSIX2_LINE_MAX)) == NULL)
+			return (NULL);
+		bufsz = _POSIX2_LINE_MAX;
+	}
+
+	*error = n = 0;
+	do {
+		rd += n;
+		if (slen > 0)
+			(void)memmove(lnbuf, lnbuf + slen, rd - slen);
+		rd  -= slen;
+		slen = 0;
+		for (i = 0; i < rd && lnbuf[i] != '\n'; i++)
+			;
+		if (i < rd) {
+			lnbuf[i] = '\0'; slen = i + 1;
+			if (slen == bufsz)
+				slen = rd = 0;
+			return (lnbuf);
+		}
+		if (rd == bufsz - 1) {
+			lnbuf = realloc(lnbuf, bufsz + _POSIX2_LINE_MAX);
+			if (lnbuf == NULL)
+				err(EXIT_FAILURE, "realloc()");
+			bufsz += 64;
+		}
+	} while ((n = read(s, lnbuf + rd, bufsz - rd - 1)) > 0);
+
+	if (n < 0) {
+		if (errno == EAGAIN || errno == EINTR) {
+			/* Just retry */
+			return (NULL);
+		}
+	}
+	if (errno == 0 || errno == ECONNRESET)
+		*error = SOCK_ERR_CONN_CLOSED;
+	else
+		*error = SOCK_ERR_IO_ERROR;
+	/* Error or lost connection */
+	slen = rd = 0;
+
+	return (NULL);
 }
 
 static bool
