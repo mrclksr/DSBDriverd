@@ -43,17 +43,17 @@
 #include <libusb20_desc.h>
 #include <libusb20.h>
 
-#define MAX_PCI_DEVS	 32
-#define MAX_EXCLUDES	 256
+#define MAX_PCI_DEVS	     32
+#define MAX_EXCLUDES	     256
 
-#define SOCK_ERR_CONN_CLOSED    1
-#define SOCK_ERR_IO_ERROR       2
+#define SOCK_ERR_IO_ERROR    2
+#define SOCK_ERR_CONN_CLOSED 1
 
-#define PATH_PCI	 "/dev/pci"
-#define PATH_DEVD_SOCKET "/var/run/devd.pipe"
+#define PATH_PCI	     "/dev/pci"
+#define PATH_DEVD_SOCKET     "/var/run/devd.pipe"
 
-#define IFCONFIG_CMD	 "ifconfig_%s=\"DHCP up\" /etc/rc.d/dhclient " \
-			 "quietstart %s"
+#define IFCONFIG_CMD	     "ifconfig_%s=\"DHCP up\" /etc/rc.d/dhclient " \
+			     "quietstart %s"
 
 struct devd_event_s {
 	int  system;
@@ -69,23 +69,23 @@ struct devd_event_s {
  * Relevant USB-interface info.
  */
 typedef struct iface_s {
-	u_short class;
-	u_short subclass;
-	u_short protocol;
+	uint16_t class;
+	uint16_t subclass;
+	uint16_t protocol;
 } iface_t;
 
 /*
  * Struct to represent a device.
  */
 typedef struct devinfo_s {
-	u_short vendor;			/* Vendor ID */
-	u_short subvendor;		/* Subvendor ID */
-	u_short device;			/* Device/product ID */
-	u_short subdevice;		/* Subdevice ID */
-	u_short class;			/* USB/PCI device class */
-	u_short subclass;		/* USB/PCI device subclass */
-	u_short revision;		/* Device revision. */
-	u_short nifaces;		/* # of USB interfaces. */
+	uint16_t vendor;		/* Vendor ID */
+	uint16_t subvendor;		/* Subvendor ID */
+	uint16_t device;		/* Device/product ID */
+	uint16_t subdevice;		/* Subdevice ID */
+	uint16_t class;			/* USB/PCI device class */
+	uint16_t subclass;		/* USB/PCI device subclass */
+	uint16_t revision;		/* Device revision. */
+	uint16_t nifaces;		/* # of USB interfaces. */
 	iface_t *iface;			/* USB interfaces. */
 } devinfo_t;
 
@@ -100,14 +100,14 @@ static int	 uconnect(const char *);
 static int	 devd_connect(void);
 static int	 get_usb_devs(void);
 static int	 get_pci_devs(void);
-static bool	 is_new(u_short, u_short, u_short, u_short);
-static bool	 match_ifsubclass(const devinfo_t *, u_short);
-static bool	 match_ifclass(const devinfo_t *, u_short);
-static bool	 match_protocol(const devinfo_t *, u_short);
+static bool	 is_new(uint16_t, uint16_t, uint16_t, uint16_t);
+static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
+static bool	 match_ifclass(const devinfo_t *, uint16_t);
+static bool	 match_protocol(const devinfo_t *, uint16_t);
 static bool	 parse_devd_event(char *);
 static void	 deamonize(void);
 static void	 netstart(const char *);
-static void	 add_iface(devinfo_t *, u_short, u_short, u_short);
+static void	 add_iface(devinfo_t *, uint16_t, uint16_t, uint16_t);
 static void	 load_driver(const devinfo_t *);
 static void	 logprint(const char *, ...);
 static void	 logprintx(const char *, ...);
@@ -121,8 +121,8 @@ main(int argc, char *argv[])
 {
 	int    ch, error, i, n, s, tries;
 	FILE   *fp;
-	bool   fflag, uflag, newdev;
 	char   *ln, *p;
+	bool   fflag, uflag, newdev;
 	fd_set rset;
 	struct timeval tv, *tp;
 
@@ -470,7 +470,7 @@ add_device()
 }
 
 static void
-add_iface(devinfo_t *d, u_short class, u_short subclass, u_short protocol)
+add_iface(devinfo_t *d, uint16_t class, uint16_t subclass, uint16_t protocol)
 {
 	d->iface = realloc(d->iface, sizeof(iface_t) * (d->nifaces + 1));
 	if (d->iface == NULL)
@@ -482,7 +482,7 @@ add_iface(devinfo_t *d, u_short class, u_short subclass, u_short protocol)
 }
 
 static bool
-match_ifclass(const devinfo_t *d, u_short class)
+match_ifclass(const devinfo_t *d, uint16_t class)
 {
 	int i;
 
@@ -494,7 +494,7 @@ match_ifclass(const devinfo_t *d, u_short class)
 }
 
 static bool
-match_ifsubclass(const devinfo_t *d, u_short subclass)
+match_ifsubclass(const devinfo_t *d, uint16_t subclass)
 {
 	int i;
 
@@ -506,7 +506,7 @@ match_ifsubclass(const devinfo_t *d, u_short subclass)
 }
 
 static bool
-match_protocol(const devinfo_t *d, u_short protocol)
+match_protocol(const devinfo_t *d, uint16_t protocol)
 {
 	int i;
 
@@ -518,7 +518,7 @@ match_protocol(const devinfo_t *d, u_short protocol)
 }
 
 static bool
-is_new(u_short vendor, u_short device, u_short class, u_short subclass)
+is_new(uint16_t vendor, uint16_t device, uint16_t class, uint16_t subclass)
 {
 	int i;
 
