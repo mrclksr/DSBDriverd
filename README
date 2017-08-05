@@ -16,7 +16,7 @@ USAGE
 OPTIONS
      -f      Run in foreground.
 
-     -l      List devices and their corresponding driver.
+     -l      List installed devices and their corresponding driver.
 
      -n      Just show what would be done, but do not load any drivers.
 
@@ -32,7 +32,7 @@ SETUP
            dsbdriverd_enable="YES"
 
      In addtion you can specify flags using the dsbdriverd_flags variable. If
-     you want dsbdriverd to automatically start dhclient(8) on your ethernet
+     you want dsbdriverd to automatically start dhclient(8) on your Ethernet
      devices for which it loaded the corresponding drivers, you can set
 
            dsbdriverd_flags="-u"

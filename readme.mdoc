@@ -23,7 +23,7 @@ applies to USB devices attached to the system later at runtime.
 .It Fl f
 Run in foreground.
 .It Fl l
-List devices and their corresponding driver.
+List installed devices and their corresponding driver.
 .It Fl n
 Just show what would be done, but do not load any drivers.
 .It Fl u
@@ -50,7 +50,7 @@ variable. If you want
 .Nm
 to automatically start
 .Xr dhclient 8
-on your ethernet devices for which it loaded the corresponding drivers,
+on your Ethernet devices for which it loaded the corresponding drivers,
 you can set
 .Bd -literal -offset indent
 dsbdriverd_flags="-u"
