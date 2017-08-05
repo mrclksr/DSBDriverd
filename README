@@ -16,6 +16,8 @@ USAGE
 OPTIONS
      -f      Run in foreground.
 
+     -l      List devices and their corresponding driver.
+
      -n      Just show what would be done, but do not load any drivers.
 
      -u      Start dhclient(8) on ethernet devices that appeared after loading
