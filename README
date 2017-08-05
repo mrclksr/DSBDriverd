@@ -20,7 +20,7 @@ OPTIONS
 
      -n      Just show what would be done, but do not load any drivers.
 
-     -u      Start dhclient(8) on ethernet devices that appeared after loading
+     -u      Start dhclient(8) on Ethernet devices that appeared after loading
              the corresponding driver.
 
      -x      Exclude every driver in the comma separated list from loading.
