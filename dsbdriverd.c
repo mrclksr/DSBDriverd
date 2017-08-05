@@ -119,18 +119,22 @@ static devinfo_t *add_device(void);
 int
 main(int argc, char *argv[])
 {
-	int    ch, error, i, n, s, tries;
-	FILE   *fp;
-	char   *ln, *p;
-	bool   fflag, uflag;
-	fd_set rset;
-	struct timeval tv, *tp;
+	int		ch, error, i, n, s, tries;
+	FILE		*fp;
+	char		*ln, *p;
+	bool		fflag, lflag, uflag;
+	fd_set		rset;
+	struct timeval	tv, *tp;
+	const devinfo_t *dp;
 
-	fflag = dryrun = uflag = false;
-	while ((ch = getopt(argc, argv, "fnhux:")) != -1) {
+	fflag = dryrun = lflag = uflag = false;
+	while ((ch = getopt(argc, argv, "flnhux:")) != -1) {
 		switch (ch) {
 		case 'f':
 			fflag = true;
+			break;
+		case 'l':
+			lflag = true;
 			break;
 		case 'n':
 			dryrun = true;
@@ -156,6 +160,21 @@ main(int argc, char *argv[])
 		}
 	}
 
+	if (lflag) {
+		if ((db = fopen(PATH_DRIVERS_DB, "r")) == NULL)
+			err(EXIT_FAILURE, "fopen(%s)", PATH_DRIVERS_DB);
+		(void)get_pci_devs();
+		(void)get_usb_devs();
+
+		for (i = 0; i < ndevs; i++) {
+			for (dp = &devlst[i]; (p = find_driver(dp)) != NULL;
+			    dp = NULL) {
+				(void)printf("vendor=%04x product=%04x: %s\n", \
+				    dp->vendor, dp->device, p);
+			}
+		}
+		return (EXIT_SUCCESS);
+	}
 	/* Check if deamon is already running. */
 	if ((fp = fopen(PATH_PID_FILE, "r+")) == NULL) {
 		if (errno != ENOENT)
@@ -264,7 +283,7 @@ static void
 usage()
 {
 	printf("Usage: %s [-h]\n" \
-	       "       %s [-fnu][-x driver,...]\n", PROGRAM, PROGRAM);
+	       "       %s [-l] | [-fnu][-x driver,...]\n", PROGRAM, PROGRAM);
 	exit(EXIT_FAILURE);
 }
 
