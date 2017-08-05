@@ -105,7 +105,7 @@ static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
 static bool	 match_ifclass(const devinfo_t *, uint16_t);
 static bool	 match_protocol(const devinfo_t *, uint16_t);
 static bool	 parse_devd_event(char *);
-static void	 deamonize(void);
+static void	 deamonize(FILE *);
 static void	 netstart(const char *);
 static void	 add_iface(devinfo_t *, uint16_t, uint16_t, uint16_t);
 static void	 load_driver(const devinfo_t *);
@@ -122,7 +122,7 @@ main(int argc, char *argv[])
 	int    ch, error, i, n, s, tries;
 	FILE   *fp;
 	char   *ln, *p;
-	bool   fflag, uflag, newdev;
+	bool   fflag, uflag;
 	fd_set rset;
 	struct timeval tv, *tp;
 
@@ -198,71 +198,63 @@ main(int argc, char *argv[])
 
 	for (i = 0; i < ndevs; i++)
 		load_driver(&devlst[i]);
-
-	/* Write our PID to the PID/lock file. */
-	(void)fprintf(fp, "%d", getpid());
-	(void)fflush(fp);
-
-	tv.tv_sec = 1; tv.tv_usec = 0; tp = &tv;
-	for (tries = 0, newdev = false; ; newdev = false) {
-		FD_ZERO(&rset);
-		FD_SET(s, &rset);
-		if (select(s + 1, &rset, NULL, NULL, tp) == -1) {
+	for (tries = 0;;) {
+		/* 
+		 * In case we loaded the driver of an ethernet device,
+		 * we wait two seconds to see if it appears. If that's
+		 * the case, we try to bring up the ethernet device
+		 * before we become a deamon. This delays the start of
+		 * services that depend on a network connection, until
+		 * we started dhclient on the device.
+		 */
+		if (tries == 2) {
+			/* Use blocking select() from now. */
+			tp = NULL;
+			if (!fflag)
+				deamonize(fp);
+			tries++;
+		} else if (tries < 2) {
+			tries++;
+			tv.tv_sec = 1; tv.tv_usec = 0; tp = &tv;
+		}
+		FD_ZERO(&rset); FD_SET(s, &rset);
+		while (select(s + 1, &rset, NULL, NULL, tp) == -1) {
 			if (errno == EINTR)
 				continue;
 			else
 				err(EXIT_FAILURE, "select()");
-		} else {
-			/* 
-			 * In case we loaded the driver of an ethernet device,
-			 * we wait two seconds to see if it appears. If that's
-			 * the case, we try to bring up the ethernet device
-			 * before we become a deamon. This delays the start of
-			 * services that depend on a network connection, until
-			 * we started dhclient on the device.
-			 */
-			if (tries > 0) {
-				/* Use blocking select() from now. */
-				tp = NULL;
-				if (!fflag)
-					deamonize();
-			} else {
-				tries++;
-				/* In case we want more than one try. */
-				tv.tv_sec = 1; tv.tv_usec = 0;
-			}
-			while ((ln = read_devd_event(s, &error)) != NULL) {
-				if (!parse_devd_event(ln))
-					continue;
-				if (devdevent.type != DEVD_TYPE_ATTACH)
-					continue;
-				switch (devdevent.system) {
-				case DEVD_SYSTEM_IFNET:
-					if (uflag && !dryrun)
-						netstart(devdevent.subsystem);
-					break;
-				case DEVD_SYSTEM_USB:
-					newdev = true;
-				}
-			}
-			if (newdev) {
+			/* NOTREACHED */
+		}
+		if (!FD_ISSET(s, &rset))
+			continue;
+		while ((ln = read_devd_event(s, &error)) != NULL) {
+			if (!parse_devd_event(ln))
+				continue;
+			if (devdevent.type != DEVD_TYPE_ATTACH)
+				continue;
+			switch (devdevent.system) {
+			case DEVD_SYSTEM_IFNET:
+				if (uflag && !dryrun)
+					netstart(devdevent.subsystem);
+				break;
+			case DEVD_SYSTEM_USB:
 				n = get_usb_devs();
 				for (i = ndevs - n; i < ndevs; i++)
 					load_driver(&devlst[i]);
 			}
-			if (error == SOCK_ERR_CONN_CLOSED) {
-				/* Lost connection to devd. */
-				(void)close(s);
-				logprintx("Lost connection to devd. " \
-				    "Reconnecting ...");
-				if ((s = devd_connect()) == -1) {
-					logprintx("Connecting to devd " \
-					    "failed. Giving up.");
-					exit(EXIT_FAILURE);
-				}
-			} else if (error == SOCK_ERR_IO_ERROR)
-				err(EXIT_FAILURE, "read_devd_event()");
 		}
+		if (error == SOCK_ERR_CONN_CLOSED) {
+			/* Lost connection to devd. */
+			(void)close(s);
+			logprintx("Lost connection to devd. " \
+			    "Reconnecting ...");
+			if ((s = devd_connect()) == -1) {
+				logprintx("Connecting to devd " \
+				    "failed. Giving up.");
+				exit(EXIT_FAILURE);
+			}
+		} else if (error == SOCK_ERR_IO_ERROR)
+			err(EXIT_FAILURE, "read_devd_event()");
 	}
 	/* NOTREACHED */
 	return (EXIT_SUCCESS);
@@ -308,7 +300,7 @@ logprintx(const char *fmt, ...)
 }
 
 static void
-deamonize()
+deamonize(FILE *pidfile)
 {
 	int i;
 
@@ -326,6 +318,9 @@ deamonize()
 			(void)signal(SIGHUP, SIG_IGN);
 		}
 	}
+	/* Write our PID to the PID/lock file. */
+	(void)fprintf(pidfile, "%d", getpid());
+	(void)fflush(pidfile);
 }
 
 static int
