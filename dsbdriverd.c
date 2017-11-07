@@ -27,6 +27,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <string.h>
+#include <ctype.h>
 #include <time.h>
 #include <limits.h>
 #include <errno.h>
@@ -78,6 +79,9 @@ typedef struct iface_s {
  * Struct to represent a device.
  */
 typedef struct devinfo_s {
+	uint8_t  bus;
+#define BUS_TYPE_USB 1
+#define BUS_TYPE_PCI 2
 	uint16_t vendor;		/* Vendor ID */
 	uint16_t subvendor;		/* Subvendor ID */
 	uint16_t device;		/* Device/product ID */
@@ -89,12 +93,14 @@ typedef struct devinfo_s {
 	iface_t *iface;			/* USB interfaces. */
 } devinfo_t;
 
-static int	 ndevs = 0;		/* # of devices. */
+static int	 ndevs;			/* # of devices. */
 static bool	 dryrun;		/* Do not load any drivers if true. */
 static FILE	 *db;			/* File pointer for drivers database. */
-static FILE	 *logfp = NULL;		/* File pointer for logprint(). */
+static FILE	 *logfp;		/* File pointer for logprint(). */
+static FILE	 *pcidb;		/* File pointer for PCI IDs database */
+static FILE	 *usbdb;		/* File pointer for USB IDs database */
 static char	 *exclude[MAX_EXCLUDES];/* List of drivers to exclude. */
-static devinfo_t *devlst = NULL;	/* List of devices. */
+static devinfo_t *devlst;		/* List of devices. */
 
 static int	 uconnect(const char *);
 static int	 devd_connect(void);
@@ -111,9 +117,11 @@ static void	 add_iface(devinfo_t *, uint16_t, uint16_t, uint16_t);
 static void	 load_driver(const devinfo_t *);
 static void	 logprint(const char *, ...);
 static void	 logprintx(const char *, ...);
+static void	 open_dbs(void);
 static void	 usage(void);
 static char	 *read_devd_event(int, int *);
 static char	 *find_driver(const devinfo_t *);
+static char	 *devdescr(FILE *, const devinfo_t *);
 static devinfo_t *add_device(void);
 
 int
@@ -161,16 +169,19 @@ main(int argc, char *argv[])
 	}
 
 	if (lflag) {
-		if ((db = fopen(PATH_DRIVERS_DB, "r")) == NULL)
-			err(EXIT_FAILURE, "fopen(%s)", PATH_DRIVERS_DB);
+		open_dbs();
 		(void)get_pci_devs();
 		(void)get_usb_devs();
 
 		for (i = 0; i < ndevs; i++) {
+			char *info;
+			info = devdescr(devlst[i].bus == BUS_TYPE_PCI ? \
+			    pcidb : usbdb, &devlst[i]);
 			for (dp = &devlst[i]; (p = find_driver(dp)) != NULL;
 			    dp = NULL) {
-				(void)printf("vendor=%04x product=%04x: %s\n", \
-				    dp->vendor, dp->device, p);
+				(void)printf("vendor=%04x product=%04x " \
+				    "%s: %s\n", dp->vendor, dp->device,
+				    info != NULL ? info : "", p);
 			}
 		}
 		return (EXIT_SUCCESS);
@@ -208,8 +219,7 @@ main(int argc, char *argv[])
 	}
 	if ((s = devd_connect()) == -1)
 		err(EXIT_FAILURE, "Couldn't connect to %s", PATH_DEVD_SOCKET);
-	if ((db = fopen(PATH_DRIVERS_DB, "r")) == NULL)
-		err(EXIT_FAILURE, "fopen(%s)", PATH_DRIVERS_DB);
+	open_dbs();
 	logprintx("%s started", PROGRAM);
 
 	(void)get_pci_devs();
@@ -544,6 +554,20 @@ is_new(uint16_t vendor, uint16_t device, uint16_t class, uint16_t subclass)
 	return (true);
 }
 
+static void
+open_dbs()
+{
+
+	if ((db = fopen(PATH_DRIVERS_DB, "r")) == NULL)
+		err(EXIT_FAILURE, "fopen(%s)", PATH_DRIVERS_DB);
+	if ((pcidb = fopen(PATH_PCIID_DB0, "r")) == NULL &&
+	    (pcidb = fopen(PATH_PCIID_DB1, "r")) == NULL)
+		logprint("Warning: Could not open PCI IDs database");
+	if ((usbdb = fopen(PATH_USBID_DB, "r")) == NULL)
+		logprint("Warning: Could not open USB IDs database");
+}
+
+
 static int
 get_pci_devs()
 {
@@ -570,6 +594,7 @@ get_pci_devs()
 			errx(EXIT_FAILURE,"ioctl(PCIOGETCONF) failed");
 		for (i = 0; i < pc.num_matches; i++) {
 			dip = add_device();
+			dip->bus       = BUS_TYPE_PCI;
 			dip->vendor    = conf[i].pc_vendor;
 			dip->device    = conf[i].pc_device;
 			dip->subvendor = conf[i].pc_subvendor;
@@ -605,6 +630,7 @@ get_usb_devs()
 		    ddesc->bDeviceClass, ddesc->bDeviceSubClass))
 			continue;
 		dip = add_device();
+		dip->bus       = BUS_TYPE_USB;
 		dip->vendor   = ddesc->idVendor;
 		dip->device   = ddesc->idProduct;
 		dip->class    = ddesc->bDeviceClass;
@@ -734,15 +760,17 @@ static void
 load_driver(const devinfo_t *dev)
 {
 	int		i;
-	char		*driver;
+	char		*driver, *info;
 	const devinfo_t *dp;
 
+	info = devdescr(dev->bus == BUS_TYPE_PCI ? pcidb : usbdb, dev);
 	for (dp = dev; (driver = find_driver(dp)) != NULL; dp = NULL) {
 		for (i = 0; exclude[i] != NULL; i++) {
 			if (strcmp(exclude[i], driver) == 0) {
-				logprintx("vendor=%04x product=%04x: " \
-				    "%s excluded from loading", dev->vendor,
-				    dev->device, driver);
+				logprintx("vendor=%04x product=%04x %s: " \
+				    "%s excluded from loading",
+				    dev->vendor, dev->device,
+				    info != NULL ? info : "", driver);
 				break;
 			}
 		}
@@ -750,21 +778,97 @@ load_driver(const devinfo_t *dev)
 			continue;
 		if (kldfind(driver) == -1) {
 			if (errno == ENOENT) {
-				logprintx("vendor=%04x product=%04x: " \
+				logprintx("vendor=%04x product=%04x %s: " \
 				    "Loading %s", dev->vendor, dev->device,
-				    driver);
+				    info != NULL ? info : "", driver);
 				if (!dryrun && kldload(driver) == -1)
 					logprint("kldload(%s)", driver);
 			} else
 				logprint("kldfind(%s)", driver);
 		} else {
-			logprintx("vendor=%04x product=%04x: %s already " \
-			    "loaded", dev->vendor, dev->device, driver);
+			logprintx("vendor=%04x product=%04x %s: %s already " \
+			    "loaded", dev->vendor, dev->device,
+			    info != NULL ? info : "", driver);
 		}
 	}
 	if (dp != NULL) {
-		logprintx("vendor=%04x product=%04x: No driver found",
-		    dev->vendor, dev->device);
+		logprintx("vendor=%04x product=%04x %s: No driver found",
+		    dev->vendor, dev->device, info != NULL ? info : "");
 	}
+}
+
+static inline char *
+nf(char *str)
+{
+	static char *next = NULL;
+
+	if (str == NULL) {
+		/* Get start of next field. */
+		if ((str = next) == NULL)
+			return (NULL);
+	}
+	while (isspace(*str))
+		str++;
+	if (*str == '\0')
+		str = next = NULL;
+	else {
+		for (next = str; *next != '\0' && !isspace(*next); next++)
+			;
+	}
+	return (str);
+}
+
+static char *
+devdescr(FILE *iddb, const devinfo_t *dev)
+{
+	int	    depth, match, _match, val, sv, sd;
+	char	   *p, *q;
+	static char info[_POSIX2_LINE_MAX], ln[_POSIX2_LINE_MAX];
+
+	if (iddb == NULL)
+		return (NULL);
+	depth = match = 0; info[0] = '\0';
+
+	if (fseek(iddb, 0, SEEK_SET) == -1) {
+		logprint("fseek()");
+		return (NULL);
+	}
+	while (fgets(ln, sizeof(ln) - 1, iddb) != NULL) {
+		if ((p = nf(ln)) == NULL || *p == '#' || *p == '\n')
+			continue;
+		for (depth = 0; ln[depth] == '\t'; depth++)
+			;
+		if (depth > match)
+			continue;
+		_match = match;
+		if (depth < match)
+			return (info);
+		(void)strtok(ln, "#\n");
+		if ((p = nf(ln)) == NULL || (q = nf(NULL)) == NULL)
+			continue;
+		if (depth < 2) {
+			val = strtol(p, NULL, 16);
+			if (depth == 0) {
+				if (val == dev->vendor)
+					match++;
+			} else if (val == dev->device)
+				match++;
+		} else if (depth == 2) {
+			sv = strtol(p, NULL, 16);
+			sd = strtol(q, NULL, 16);
+			if ((q = nf(NULL)) == NULL)
+				continue;
+			if (sv == dev->subvendor && sd == dev->subdevice)
+				match++;
+		}
+		if (match == _match || match < depth)
+			continue;
+		if (depth > 0)
+			(void)strlcat(info, " ", sizeof(info));
+		(void)strlcat(info, q, sizeof(info));
+	}
+	if (depth < match)
+		return (info);
+	return (NULL);
 }
 
