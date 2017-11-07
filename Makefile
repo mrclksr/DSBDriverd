@@ -11,11 +11,17 @@ BINDIR	       = ${PREFIX}/libexec
 MANDIR	       = ${PREFIX}/man/man8
 RCDIR	       = ${PREFIX}/etc/rc.d
 DBDIR	       = ${PREFIX}/share/${PROGRAM}
+USBDB	       = ${PREFIX}/share/usbids/usb.ids
+PCIDB0	       = ${PREFIX}/share/pciids/pci.ids
+PCIDB1	       = /usr/share/misc/pci_vendors
 INSTALL_TARGETS= ${PROGRAM} ${RCSCRIPT} ${MANFILE}
 PROGRAM_FLAGS  = -Wall ${CFLAGS} ${CPPFLAGS} -DPROGRAM=\"${PROGRAM}\"
 PROGRAM_FLAGS += -DPATH_DRIVERS_DB=\"${DBDIR}/${DBFILE}\"
 PROGRAM_FLAGS += -DPATH_LOG=\"${LOGFILE}\"
 PROGRAM_FLAGS += -DPATH_PID_FILE=\"${PIDFILE}\"
+PROGRAM_FLAGS += -DPATH_PCIID_DB0=\"${PCIDB0}\"
+PROGRAM_FLAGS += -DPATH_PCIID_DB1=\"${PCIDB1}\"
+PROGRAM_FLAGS += -DPATH_USBID_DB=\"${USBDB}\"
 PROGRAM_LIBS   = -lusb
 BSD_INSTALL_DATA    ?= install -m 0644
 BSD_INSTALL_SCRIPT  ?= install -m 555
