@@ -38,8 +38,7 @@ ${RCSCRIPT}: ${RCSCRIPT}.tmpl
 	< ${.ALLSRC} > ${RCSCRIPT}
 
 ${MANFILE}: ${MANFILE}.tmpl
-	sed -e 's|@VERSION@|${VERSION}|g' \
-	    -e 's|@PATH_DB@|${DBDIR}/${DBFILE}|g' \
+	sed -e 's|@PATH_DB@|${DBDIR}/${DBFILE}|g' \
 	    -e 's|@PATH_LOG@|${LOGFILE}|g' \
 	< ${.ALLSRC} > ${MANFILE}
 
