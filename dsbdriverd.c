@@ -112,7 +112,7 @@ static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
 static bool	 match_ifclass(const devinfo_t *, uint16_t);
 static bool	 match_protocol(const devinfo_t *, uint16_t);
 static bool	 parse_devd_event(char *);
-static void	 lockpidfile(void);
+static void	 lockpidfile(bool);
 static void	 daemonize(void);
 static void	 netstart(const char *);
 static void	 add_iface(devinfo_t *, uint16_t, uint16_t, uint16_t);
@@ -187,7 +187,7 @@ main(int argc, char *argv[])
 		}
 		return (EXIT_SUCCESS);
 	}
-	lockpidfile();
+	lockpidfile(false);
 
 	if (!fflag) {
 		/* Close all files except for pidfile and stderr. */
@@ -284,7 +284,7 @@ usage()
 }
 
 static void
-lockpidfile()
+lockpidfile(bool block)
 {
 	/* Check if daemon is already running. */
 	if ((pidfile = fopen(PATH_PID_FILE, "r+")) == NULL) {
@@ -296,7 +296,7 @@ lockpidfile()
 			    PATH_PID_FILE);
 		}
 	}
-	if (lockf(fileno(pidfile), F_TLOCK, 0) == -1) {
+	if (lockf(fileno(pidfile), block ? F_LOCK : F_TLOCK, 0) == -1) {
 		if (errno == EAGAIN) {
 			/* Daemon already running. */
 			errx(EXIT_FAILURE, "%s is already running.", PROGRAM);
@@ -306,6 +306,7 @@ lockpidfile()
 	/* Write our PID to the PID/lock file. */
 	(void)fprintf(pidfile, "%d", getpid());
 	(void)fflush(pidfile);
+	(void)ftruncate(fileno(pidfile), ftell(pidfile));
 }
 
 void
@@ -344,8 +345,6 @@ daemonize()
 {
 	int i;
 
-	(void)fclose(pidfile);
-
 	for (i = 0; i < 2; i++) {
 		switch (fork()) {
 		case -1:
@@ -360,7 +359,7 @@ daemonize()
 			(void)signal(SIGHUP, SIG_IGN);
 		}
 	}
-	lockpidfile();
+	lockpidfile(true);
 }
 
 static int
