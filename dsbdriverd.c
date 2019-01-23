@@ -287,14 +287,9 @@ static void
 lockpidfile(bool block)
 {
 	/* Check if daemon is already running. */
-	if ((pidfile = fopen(PATH_PID_FILE, "r+")) == NULL) {
-		if (errno != ENOENT)
-			err(EXIT_FAILURE, "fopen(%s)", PATH_PID_FILE);
-		/* Not running - Create the PID/lock file. */
-		if ((pidfile = fopen(PATH_PID_FILE, "w")) == NULL) {
-			err(EXIT_FAILURE, "couldn't create pid file %s",
-			    PATH_PID_FILE);
-		}
+	if ((pidfile = fopen(PATH_PID_FILE, "w")) == NULL) {
+		err(EXIT_FAILURE, "Couldn't open/create pid file %s",
+		    PATH_PID_FILE);
 	}
 	if (lockf(fileno(pidfile), block ? F_LOCK : F_TLOCK, 0) == -1) {
 		if (errno == EAGAIN) {
@@ -306,7 +301,6 @@ lockpidfile(bool block)
 	/* Write our PID to the PID/lock file. */
 	(void)fprintf(pidfile, "%d", getpid());
 	(void)fflush(pidfile);
-	(void)ftruncate(fileno(pidfile), ftell(pidfile));
 }
 
 void
