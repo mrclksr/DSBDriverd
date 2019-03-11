@@ -30,6 +30,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <limits.h>
+#include <libutil.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <err.h>
@@ -96,12 +97,12 @@ typedef struct devinfo_s {
 static int	 ndevs;			/* # of devices. */
 static bool	 dryrun;		/* Do not load any drivers if true. */
 static FILE	 *db;			/* File pointer for drivers database. */
-static FILE	 *pidfile;		/* File pointer for lock file. */
 static FILE	 *logfp;		/* File pointer for logprint(). */
 static FILE	 *pcidb;		/* File pointer for PCI IDs database */
 static FILE	 *usbdb;		/* File pointer for USB IDs database */
 static char	 *exclude[MAX_EXCLUDES];/* List of drivers to exclude. */
 static devinfo_t *devlst;		/* List of devices. */
+static struct pidfh *pfh;		/* PID file handle. */
 
 static int	 uconnect(const char *);
 static int	 devd_connect(void);
@@ -113,8 +114,7 @@ static bool	 match_ifclass(const devinfo_t *, uint16_t);
 static bool	 match_protocol(const devinfo_t *, uint16_t);
 static bool	 parse_devd_event(char *);
 static bool	 find_kmod(const char *);
-static void	 lockpidfile(bool);
-static void	 daemonize(void);
+static void	 lockpidfile(void);
 static void	 netstart(const char *);
 static void	 add_iface(devinfo_t *, uint16_t, uint16_t, uint16_t);
 static void	 load_driver(const devinfo_t *);
@@ -188,12 +188,12 @@ main(int argc, char *argv[])
 		}
 		return (EXIT_SUCCESS);
 	}
-	lockpidfile(false);
+	lockpidfile();
 
 	if (!fflag) {
 		/* Close all files except for pidfile and stderr. */
 		for (i = 0; i < 16; i++) {
-			if (fileno(pidfile) != i && fileno(stderr) != i)
+			if (pidfile_fileno(pfh) != i && fileno(stderr) != i)
 				(void)close(i);
 		}
 		/* Redirect error messages to logfile. */
@@ -226,8 +226,11 @@ main(int argc, char *argv[])
 		if (tries == 2) {
 			/* Use blocking select() from now. */
 			tp = NULL;
-			if (!fflag)
-				daemonize();
+			if (!fflag) {
+				if (daemon(0, 1) == -1)
+					err(EXIT_FAILURE, "Failed to daemonize");
+				(void)pidfile_write(pfh);
+			}
 			tries++;
 		} else if (tries < 2) {
 			tries++;
@@ -285,23 +288,15 @@ usage()
 }
 
 static void
-lockpidfile(bool block)
+lockpidfile()
 {
-	/* Check if daemon is already running. */
-	if ((pidfile = fopen(PATH_PID_FILE, "w")) == NULL) {
-		err(EXIT_FAILURE, "Couldn't open/create pid file %s",
-		    PATH_PID_FILE);
-	}
-	if (lockf(fileno(pidfile), block ? F_LOCK : F_TLOCK, 0) == -1) {
-		if (errno == EAGAIN) {
-			/* Daemon already running. */
+
+	/* Check if deamon is already running. */
+	if ((pfh = pidfile_open(PATH_PID_FILE, 0600, NULL)) == NULL) {
+		if (errno == EEXIST)
 			errx(EXIT_FAILURE, "%s is already running.", PROGRAM);
-		} else
-			err(EXIT_FAILURE, "flock()");
+		err(EXIT_FAILURE, "Failed to create PID file.");
 	}
-	/* Write our PID to the PID/lock file. */
-	(void)fprintf(pidfile, "%d", getpid());
-	(void)fflush(pidfile);
 }
 
 void
@@ -333,28 +328,6 @@ logprintx(const char *fmt, ...)
 	(void)vsnprintf(msgbuf, sizeof(msgbuf), fmt, ap);
 	clock = time(NULL); tm = ctime(&clock); (void)strtok(tm, "\n");
 	(void)fprintf(logfp, "%s: %s\n", tm, msgbuf);
-}
-
-static void
-daemonize()
-{
-	int i;
-
-	for (i = 0; i < 2; i++) {
-		switch (fork()) {
-		case -1:
-			err(EXIT_FAILURE, "fork()");
-		case  0:
-			break;
-		default:
-			exit(EXIT_SUCCESS);
-		}
-		if (i == 0) {
-			(void)setsid();
-			(void)signal(SIGHUP, SIG_IGN);
-		}
-	}
-	lockpidfile(true);
 }
 
 static int
