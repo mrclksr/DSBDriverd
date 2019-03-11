@@ -37,6 +37,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/param.h>
+#include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/pciio.h>
 #include <unistd.h>
@@ -112,6 +113,7 @@ static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
 static bool	 match_ifclass(const devinfo_t *, uint16_t);
 static bool	 match_protocol(const devinfo_t *, uint16_t);
 static bool	 parse_devd_event(char *);
+static bool	 find_kmod(const char *);
 static void	 lockpidfile(bool);
 static void	 daemonize(void);
 static void	 netstart(const char *);
@@ -760,6 +762,51 @@ find_driver(const devinfo_t *d)
 	return (NULL);
 }
 
+static bool
+find_kmod(const char *name)
+{
+	int		   id, _id;
+	size_t		   len;
+	const char	   *q, *p;
+	struct module_stat mstat;
+
+	if (kldfind(name) == -1) {
+		if (errno != ENOENT)
+			logprint("kldfind(%s)", name);
+	} else
+		return (true);
+	for (id = kldnext(0); id > 0; id = kldnext(id)) {
+		for (_id = kldfirstmod(id); _id > 0; _id = modfnext(_id)) {
+			mstat.version = sizeof(struct module_stat);
+			if (modstat(_id, &mstat) == -1)
+				continue;
+			/* Ignore the bus part */
+			if ((p = strchr(mstat.name, '/')) == NULL)
+				p = mstat.name;
+			else
+				p++;
+			/* Ignore .ko suffix */
+			for (q = p; *q != '\0'; q++) {
+				if (*q == '.' && strcmp(q, ".ko") == 0)
+					break;
+			}
+			len = q - p;
+			if (len == strlen(name) && strncmp(name, p, len) == 0)
+				return (true);
+			/*
+			 * Network drivers compiled into the kernel do not
+			 * have the if_* prefix.
+			 */
+			if (strncmp(name, "if_", 3) == 0) {
+				if (len == strlen(name) - 3 &&
+				    strncmp(name + 3, p, len) == 0)
+					return (true);
+			}
+		}
+	}
+	return (false);
+}
+
 static void
 load_driver(const devinfo_t *dev)
 {
@@ -780,15 +827,13 @@ load_driver(const devinfo_t *dev)
 		}
 		if (exclude[i] != NULL)
 			continue;
-		if (kldfind(driver) == -1) {
-			if (errno == ENOENT) {
-				logprintx("vendor=%04x product=%04x %s: " \
-				    "Loading %s", dev->vendor, dev->device,
-				    info != NULL ? info : "", driver);
-				if (!dryrun && kldload(driver) == -1)
-					logprint("kldload(%s)", driver);
-			} else
-				logprint("kldfind(%s)", driver);
+		if (!find_kmod(driver)) {
+			logprintx("vendor=%04x product=%04x %s: " \
+			    "Loading %s", dev->vendor, dev->device,
+			    info != NULL ? info : "", driver);
+			if (!dryrun && kldload(driver) == -1)
+				logprint("kldload(%s)", driver);
+
 		} else {
 			logprintx("vendor=%04x product=%04x %s: %s already " \
 			    "loaded", dev->vendor, dev->device,
