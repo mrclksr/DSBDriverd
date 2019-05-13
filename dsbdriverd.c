@@ -182,8 +182,9 @@ main(int argc, char *argv[])
 			for (dp = &devlst[i]; (p = find_driver(dp)) != NULL;
 			    dp = NULL) {
 				(void)printf("vendor=%04x product=%04x " \
-				    "%s: %s\n", dp->vendor, dp->device,
-				    info != NULL ? info : "", p);
+				    "%s: %s\n", devlst[i].vendor,
+				    devlst[i].device, info != NULL ? info : "",
+				    p);
 			}
 		}
 		return (EXIT_SUCCESS);
@@ -645,43 +646,66 @@ static char *
 find_driver(const devinfo_t *d)
 {
 	int	    match, depth_prev, depth_cur;
-	bool	    nomatch;
+	bool	    nomatch, skip;
+	long	    len;
 	char	    ln[_POSIX2_LINE_MAX], *p;
-	static char driver[64];
+	static char *last = NULL;
+	static char driver[_POSIX2_LINE_MAX];
 	static const devinfo_t *curdev = NULL;
 
 	if (d == NULL) {
 		/* Try to find more drivers for previously defined dev. */
 		d = curdev;
+		if (last != NULL) {
+			p = strtok_r(NULL, "\t ", &last);
+			if (p != NULL)
+				return (p);
+			last = NULL;
+		}
 	} else {
 		if (fseek(db, 0, SEEK_SET) == -1)
 			err(EXIT_FAILURE, "fseek()");
 		curdev = d;
 	}
+	skip = false;
 	match = depth_prev = 0;
 	while (fgets(ln, sizeof(ln), db) != NULL) {
+		len = strlen(ln);
 		(void)strtok(ln, "#\r\n");
 		if (ln[0] == '\0')
 			continue;
 		for (depth_cur = 0; ln[depth_cur] == '\t'; depth_cur++)
 			;
-		if (depth_cur - match >= 2)
-			continue;
-		if (depth_cur < depth_prev) {
-			if (match < depth_prev)
+		if (depth_prev > 0 && depth_cur < depth_prev) {
+			if (match == depth_prev) {
+				if (depth_cur == 0) {
+					/* Driver name. Get it next round. */
+					(void)fseek(db, -len, SEEK_CUR);
+				}
+				return (strtok_r(driver, "\t ", &last));
+			} else if (match > 0) {
 				match = 0;
-			else
-				return (driver);
+				skip = true;
+			}
+		} else if (depth_cur == 0) {
+			(void)strncpy(driver, ln, sizeof(driver));
+			skip = false;
+			depth_prev = match = 0;
+			continue;
+		} else if (skip)
+			continue;
+		if (depth_cur - match >= 2) {
+			if (match > 0) {
+				skip = true;
+				match = 0;
+			}
+			continue;
 		}
 		depth_prev = depth_cur;
 
 		if ((p = strtok(ln, "\t ")) == NULL)
 			continue;
 		switch (depth_cur) {
-		case 0:
-			depth_prev = match = 0;
-			(void)strncpy(driver, p, sizeof(driver));
-			break;
 		case 1:
 			if (*p == '*' || strtol(p, NULL, 16) == d->vendor)
 				match++;
@@ -726,8 +750,7 @@ find_driver(const devinfo_t *d)
 		}
 	}
 	if (match > 0 && match >= depth_cur)
-		return (driver);
-
+		return (strtok_r(driver, "\t ", &last));
 	/* No more drivers found. */
 	return (NULL);
 }
