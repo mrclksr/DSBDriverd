@@ -25,7 +25,7 @@
 #
 # FILE FORMAT
 #
-# driver_module
+# driver_module1 [driver_module2 ...]
 #	vendor					<-- One tab
 #		device [extra info]		<-- Two tabs
 #			subvendor		<-- Three tabs
@@ -57,6 +57,14 @@ snd_hda
 		3b57
 		811b
 		ffff
+		0054
+		2801
+		2802
+		2803
+		2804
+		2805
+		2806
+		29fb
 	10de
 		026c
 		0371
@@ -481,15 +489,6 @@ snd_hda
 	17e8
 		ffff
 
-	8086
-		0054
-		2801
-		2802
-		2803
-		2804
-		2805
-		2806
-		29fb
 
 snd_ich
 	8086
@@ -822,14 +821,13 @@ if_bwi
 		4319
 		431a
 
-if_bwn
+if_bwn bwn_v4_ucode
 	14e4
 		4306
 		4307
 		4311
 		4312
 		4313
-		4315
 		4318
 		4319
 		431a
@@ -849,6 +847,10 @@ if_bwn
 		4353
 		0576
 		4357
+
+if_bwn bwn_v4_lp_ucode
+	14e4
+		4315
 
 if_bxe
 	14E4
