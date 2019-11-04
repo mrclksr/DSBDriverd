@@ -2125,6 +2125,8 @@ if_rsu
 if_rtwn_pci
 	10ec
 		8176
+		8179
+
 if_rtwn_usb
 	0b05
 		17ab
