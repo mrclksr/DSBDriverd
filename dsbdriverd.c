@@ -394,6 +394,9 @@ read_devd_event(int s, int *error)
 			if (errno == EAGAIN)
 				return (NULL);
 			err(EXIT_FAILURE, "recvmsg()");
+		} else if (n == 0 && rd == 0) {
+			*error = SOCK_ERR_CONN_CLOSED;
+			return (NULL);
 		}
 		if (rd + n + 1 > bufsz) {
 			if ((lnbuf = realloc(lnbuf, rd + n + 65)) == NULL)
