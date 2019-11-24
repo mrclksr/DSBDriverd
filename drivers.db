@@ -2501,6 +2501,16 @@ mlx
 			1069
 				0020
 
+mlx4en mlx4
+	15b3
+		1002
+		1003
+
+mlx5en mlx5 mlxfw
+	15b3
+		1013
+		1017
+
 mly
 	1069
 		ba56
