@@ -122,6 +122,8 @@ static void	 logprint(const char *, ...);
 static void	 logprintx(const char *, ...);
 static void	 open_dbs(void);
 static void	 usage(void);
+static void	 print_pci_devinfo(const devinfo_t *);
+static void	 print_usb_devinfo(const devinfo_t *);
 static char	 *read_devd_event(int, int *);
 static char	 *find_driver(const devinfo_t *);
 static char	 *devdescr(FILE *, const devinfo_t *);
@@ -135,7 +137,6 @@ main(int argc, char *argv[])
 	bool		fflag, lflag, uflag;
 	fd_set		rset;
 	struct timeval	tv, *tp;
-	const devinfo_t *dp;
 
 	fflag = dryrun = lflag = uflag = false;
 	while ((ch = getopt(argc, argv, "flnhux:")) != -1) {
@@ -176,16 +177,10 @@ main(int argc, char *argv[])
 		(void)get_usb_devs();
 
 		for (i = 0; i < ndevs; i++) {
-			char *info;
-			info = devdescr(devlst[i].bus == BUS_TYPE_PCI ? \
-			    pcidb : usbdb, &devlst[i]);
-			for (dp = &devlst[i]; (p = find_driver(dp)) != NULL;
-			    dp = NULL) {
-				(void)printf("vendor=%04x product=%04x " \
-				    "%s: %s\n", devlst[i].vendor,
-				    devlst[i].device, info != NULL ? info : "",
-				    p);
-			}
+			if (devlst[i].bus == BUS_TYPE_PCI)
+				print_pci_devinfo(&devlst[i]);
+			else if (devlst[i].bus == BUS_TYPE_USB)
+				print_usb_devinfo(&devlst[i]);
 		}
 		return (EXIT_SUCCESS);
 	}
@@ -286,6 +281,45 @@ usage()
 	printf("Usage: %s [-h]\n" \
 	       "       %s [-l] | [-fnu][-x driver,...]\n", PROGRAM, PROGRAM);
 	exit(EXIT_FAILURE);
+}
+
+static void
+print_pci_devinfo(const devinfo_t *dev)
+{
+	char		*info, *p;
+	const devinfo_t	*dp;
+
+	info = devdescr(pcidb, dev);
+	for (dp = dev; (p = find_driver(dp)) != NULL; dp = NULL) {
+		(void)printf("vendor=%04x product=%04x " \
+		    "class=%02x subclass=%02x bus=PCI %s: %s\n",
+		    dev->vendor, dev->device, dev->class, dev->subclass,
+		    info != NULL ? info : "", p);
+	}
+}
+
+static void
+print_usb_devinfo(const devinfo_t *dev)
+{
+	int		i;
+	char		*info, *p;
+	const devinfo_t *dp;
+
+	info = devdescr(usbdb, dev);
+	for (dp = dev; (p = find_driver(dp)) != NULL; dp = NULL) {
+		(void)printf("vendor=%04x product=%04x " \
+		    "class=%02x subclass=%02x bus=USB %s: %s\n",
+		    dev->vendor, dev->device, dev->class, dev->subclass,
+		    info != NULL ? info : "", p);
+		for (i = 0; i < dev->nifaces; i++) {
+			(void)printf("vendor=%04x product=%04x "    \
+			    "ifclass=%02x ifsubclass=%02x bus=USB " \
+			    "protocol=%02x %s: %s\n",
+			    dev->vendor, dev->device,
+			    dev->iface[i].class, dev->iface[i].subclass,
+			    dev->iface[i].protocol, info != NULL ? info : "", p);
+		}
+	}
 }
 
 static void
