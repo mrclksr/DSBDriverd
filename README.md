@@ -17,10 +17,20 @@ applies to USB devices attached to the system later at runtime.
 # USAGE
 
 **dsbdriverd**
+\[**-l** | **-c** *vendor:device*]
+|
 \[**-fnu**]
-\[**-x** *driver, ...*]
+\[**-x** *driver,...*]
 
 # OPTIONS
+
+**-c**
+
+> Check if there is a driver for the given
+> *vendor*
+> and
+> *device*
+> ID.
 
 **-f**
 
