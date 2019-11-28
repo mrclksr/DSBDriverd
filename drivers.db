@@ -1049,6 +1049,10 @@ if_ed
 	8c4a
 		1980
 
+if_ipheth
+	05ac
+		* ifclass=255 ifsubclass=253 protocol=1
+
 if_ena
 	1d0f
 		0ec2
