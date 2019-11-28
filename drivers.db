@@ -1067,6 +1067,14 @@ if_muge
 		7801
 		7850
 
+if_urndis
+	0830
+		* ifclass=2 ifsubclass=2 protocol=ff
+	*
+		* ifclass=EF ifsubclass=4 protocol=1
+		* ifclass=EF ifsubclass=1 protocol=1
+		* ifclass=e0 ifsubclass=1 protocol=3
+
 if_ixl
 	8086
 		1572
