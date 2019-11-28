@@ -1049,6 +1049,13 @@ if_ed
 	8c4a
 		1980
 
+if_ena
+	1d0f
+		0ec2
+		1ec2
+		ec20
+		ec21
+
 if_en
 	111a
 		0000
