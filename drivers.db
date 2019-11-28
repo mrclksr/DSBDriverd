@@ -1053,6 +1053,15 @@ if_ipheth
 	05ac
 		* ifclass=255 ifsubclass=253 protocol=1
 
+if_mos
+	9710
+		7730
+		7830
+		7832
+	0df6
+		0021
+		0002
+
 if_ixl
 	8086
 		1572
