@@ -16,10 +16,18 @@ applies to USB devices attached to the system later at runtime.
 .Ed
 .Sh USAGE
 .Nm
+.Op Fl l | Fl c Ar vendor:device
+|
 .Op Fl fnu
-.Op Fl x Ar driver, ...
+.Op Fl x Ar driver,...
 .Sh OPTIONS
 .Bl -tag -width indent
+.It Fl c
+Check if there is a driver for the given
+.Ar vendor
+and
+.Ar device
+ID.
 .It Fl f
 Run in foreground.
 .It Fl l

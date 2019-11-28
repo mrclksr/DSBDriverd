@@ -108,6 +108,7 @@ static int	 uconnect(const char *);
 static int	 devd_connect(void);
 static int	 get_usb_devs(void);
 static int	 get_pci_devs(void);
+static int	 check(uint16_t, uint16_t);
 static bool	 is_new(uint16_t, uint16_t, uint16_t, uint16_t);
 static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
 static bool	 match_ifclass(const devinfo_t *, uint16_t);
@@ -134,13 +135,26 @@ main(int argc, char *argv[])
 {
 	int		ch, error, i, n, s, tries;
 	char		*ln, *p;
-	bool		fflag, lflag, uflag;
+	bool		cflag, fflag, lflag, uflag;
 	fd_set		rset;
+	uint16_t	vendor, device;
 	struct timeval	tv, *tp;
 
-	fflag = dryrun = lflag = uflag = false;
-	while ((ch = getopt(argc, argv, "flnhux:")) != -1) {
+	cflag = fflag = dryrun = lflag = uflag = false;
+	while ((ch = getopt(argc, argv, "c:flnhux:")) != -1) {
 		switch (ch) {
+		case 'c':
+			cflag = true;
+			for (i = 0, p = optarg; (p = strtok(p, ":")) != NULL;
+			    i++, p = NULL) {
+				if (i == 0)
+					vendor = strtol(p, NULL, 16);
+				else
+					device = strtol(p, NULL, 16);
+			}
+			if (i != 2)
+				usage();
+			break;
 		case 'f':
 			fflag = true;
 			break;
@@ -170,12 +184,14 @@ main(int argc, char *argv[])
 			usage();
 		}
 	}
-
-	if (lflag) {
+	if (cflag || lflag) {
 		open_dbs();
 		(void)get_pci_devs();
 		(void)get_usb_devs();
-
+	}
+	if (cflag)
+		return (check(vendor, device));
+	if (lflag) {
 		for (i = 0; i < ndevs; i++) {
 			if (devlst[i].bus == BUS_TYPE_PCI)
 				print_pci_devinfo(&devlst[i]);
@@ -278,8 +294,9 @@ main(int argc, char *argv[])
 static void
 usage()
 {
-	printf("Usage: %s [-h]\n" \
-	       "       %s [-l] | [-fnu][-x driver,...]\n", PROGRAM, PROGRAM);
+	(void)printf("Usage: %s [-h]\n" \
+	       "       %s [-l|-c vendor:device] | [-fnu][-x driver,...]\n",
+	       PROGRAM, PROGRAM);
 	exit(EXIT_FAILURE);
 }
 
@@ -320,6 +337,28 @@ print_usb_devinfo(const devinfo_t *dev)
 			    dev->iface[i].protocol, info != NULL ? info : "", p);
 		}
 	}
+}
+
+static int
+check(uint16_t vendor, uint16_t device)
+{
+	int		n;
+	char		*info;
+	devinfo_t	dev;
+	const char	*p;
+	const devinfo_t	*dp;
+
+	(void)memset(&dev, 0, sizeof(dev));
+	dev.vendor = vendor;
+	dev.device = device;
+
+	if ((info = devdescr(pcidb, &dev)) == NULL)
+		info = devdescr(usbdb, &dev);
+	for (n = 0, dp = &dev; (p = find_driver(dp)) != NULL; dp = NULL, n++)
+		(void)printf("%s: %s\n", info != NULL ? info: "", p);
+	if (n > 0)
+		return (0);
+	return (1);
 }
 
 static void
