@@ -1072,6 +1072,12 @@ if_ixl
 		158A
 		158B
 
+if_ixlv
+	8086
+		154C
+		37CD
+		1889
+
 if_ena
 	1d0f
 		0ec2
