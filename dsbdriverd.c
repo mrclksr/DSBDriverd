@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <signal.h>
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
@@ -41,6 +42,7 @@
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/pciio.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <paths.h>
 #include <libusb20_desc.h>
@@ -122,9 +124,11 @@ static void	 load_driver(const devinfo_t *);
 static void	 logprint(const char *, ...);
 static void	 logprintx(const char *, ...);
 static void	 open_dbs(void);
+static void	 exec_cmd(const char *, const devinfo_t *, const char *);
 static void	 usage(void);
 static void	 print_pci_devinfo(const devinfo_t *);
 static void	 print_usb_devinfo(const devinfo_t *);
+static char	 *int2char(uint16_t);
 static char	 *read_devd_event(int, int *);
 static char	 *find_driver(const devinfo_t *);
 static char	 *devdescr(FILE *, const devinfo_t *);
@@ -905,6 +909,110 @@ find_kmod(const char *name)
 	return (false);
 }
 
+static char *
+int2char(uint16_t val)
+{
+	static char num[5];
+
+	(void)snprintf(num, sizeof(num), "%x", val);
+	return (num);
+}
+
+static void
+exec_cmd(const char *cmd, const devinfo_t *dev, const char *descr)
+{
+	int	 i, procmaxwait, sc, status, sigs[2] = { SIGTERM, SIGKILL };
+	char	 var[64];
+	pid_t	 pid, ret;
+	sigset_t sigmask, savedmask;
+
+	procmaxwait = 10;
+
+	errno = 0;
+	/* Block SIGCHLD */
+	(void)sigemptyset(&sigmask); (void)sigaddset(&sigmask, SIGCHLD);
+	(void)sigprocmask(SIG_BLOCK, &sigmask, &savedmask);
+
+	switch ((pid = vfork())) {
+	case -1:
+		err(EXIT_FAILURE, "vfork()");
+		/* NOTREACHED */
+	case  0:
+		(void)setenv("DSBDRIVERD_VENDOR", int2char(dev->vendor), 1);
+		(void)setenv("DSBDRIVERD_DEVICE", int2char(dev->device), 1);
+		(void)setenv("DSBDRIVERD_SUBVENDOR",
+		    int2char(dev->subvendor), 1);
+		(void)setenv("DSBDRIVERD_SUBDEVICE",
+		    int2char(dev->subdevice), 1);
+		(void)setenv("DSBDRIVERD_DEVCLASS", int2char(dev->class), 1);
+		if (descr != NULL)
+			(void)setenv("DSBDRIVERD_DESCR", descr, 1);
+		if (dev->bus == BUS_TYPE_USB) {
+			(void)setenv("DSBDRIVERD_BUS", "USB", 1);
+			for (i = 0; i < dev->nifaces; i++) {
+				(void)snprintf(var, sizeof(var),
+				    "DSBDRIVERD_IFCLASS%d", i);
+				(void)setenv(var,
+				    int2char(dev->iface[i].class), 1);
+				(void)snprintf(var, sizeof(var),
+				    "DSBDRIVERD_IFSUBCLASS%d", i);
+				(void)setenv(var,
+				    int2char(dev->iface[i].subclass), 1);
+				(void)snprintf(var, sizeof(var),
+				    "DSBDRIVERD_IFPROTOCOL%d", i);
+				(void)setenv(var,
+				    int2char(dev->iface[i].protocol), 1);
+			}
+		} else
+			(void)setenv("DSBDRIVERD_BUS", "PCI", 1);
+		/* Restore old signal mask */
+		(void)sigprocmask(SIG_SETMASK, &savedmask, NULL);
+		execl(_PATH_BSHELL, _PATH_BSHELL, "-c", cmd, NULL);
+		_exit(255);
+		/* NOTREACHED */
+	default:
+		/* Restore old signal mask */
+		(void)sigprocmask(SIG_SETMASK, &savedmask, NULL);
+		break;
+	}
+	for (i = errno = 0; i < procmaxwait; errno = 0) {
+		ret = waitpid(pid, &status, WEXITED | WNOHANG);
+		if (ret == (pid_t)-1 && errno == EINTR)
+			continue;
+		else if (ret == (pid_t)-1)
+			err(EXIT_FAILURE, "waitpid()");
+		else if (ret == pid) {
+			if (WEXITSTATUS(status) != 0) {
+				logprintx("Command '%s' exited with code %d",
+				    cmd, WEXITSTATUS(status));
+			}
+			return;
+		}
+		(void)sleep(1);
+		i++;
+	}
+	if (i >= procmaxwait) {
+		/* Kill blocking process */
+		logprintx("Killing blocking process %u ...", pid);
+		for (sc = 0; sc < sizeof(sigs) / sizeof(int); sc++) {
+			logprintx("Sending %s to %u ...",
+			    sc == 0 ? "SIGTERM" : "SIGKILL", pid);
+			(void)kill(pid, sigs[sc]);
+			for (i = errno = 0; i < 5; errno = 0) {
+				ret = waitpid(pid, &status, WEXITED | WNOHANG);
+				if (ret == (pid_t)-1 && errno == EINTR)
+					continue;
+				else if (ret == (pid_t)-1)
+					err(EXIT_FAILURE, "waitpid()");
+				else if (ret == pid)
+					return;
+				(void)sleep(1);
+				i++;
+			}
+		}
+	}
+}
+
 static void
 load_driver(const devinfo_t *dev)
 {
@@ -914,6 +1022,11 @@ load_driver(const devinfo_t *dev)
 
 	info = devdescr(dev->bus == BUS_TYPE_PCI ? pcidb : usbdb, dev);
 	for (dp = dev; (driver = find_driver(dp)) != NULL; dp = NULL) {
+		if (driver[0] == '!') {
+			/* Execute command */
+			exec_cmd(driver + 1, dev, info);
+			continue;
+		}
 		for (i = 0; exclude[i] != NULL; i++) {
 			if (strcmp(exclude[i], driver) == 0) {
 				logprintx("vendor=%04x product=%04x %s: " \
