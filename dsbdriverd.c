@@ -687,7 +687,7 @@ get_usb_devs()
 		    ddesc->bDeviceClass, ddesc->bDeviceSubClass))
 			continue;
 		dip = add_device();
-		dip->bus       = BUS_TYPE_USB;
+		dip->bus      = BUS_TYPE_USB;
 		dip->vendor   = ddesc->idVendor;
 		dip->device   = ddesc->idProduct;
 		dip->class    = ddesc->bDeviceClass;
