@@ -949,6 +949,8 @@ exec_cmd(const char *cmd, const devinfo_t *dev, const char *descr)
 			(void)setenv("DSBDRIVERD_DESCR", descr, 1);
 		if (dev->bus == BUS_TYPE_USB) {
 			(void)setenv("DSBDRIVERD_BUS", "USB", 1);
+			(void)setenv("DSBDRIVERD_INTERFACES",
+			    int2char(dev->nifaces), 1);
 			for (i = 0; i < dev->nifaces; i++) {
 				(void)snprintf(var, sizeof(var),
 				    "DSBDRIVERD_IFCLASS%d", i);
