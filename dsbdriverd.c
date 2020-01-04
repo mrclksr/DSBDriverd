@@ -977,7 +977,7 @@ exec_cmd(const char *cmd, const devinfo_t *dev, const char *descr)
 		(void)sigprocmask(SIG_SETMASK, &savedmask, NULL);
 		break;
 	}
-	for (i = errno = 0; i < procmaxwait; errno = 0) {
+	for (i = errno = 0; i < procmaxwait * 1000; errno = 0) {
 		ret = waitpid(pid, &status, WEXITED | WNOHANG);
 		if (ret == (pid_t)-1 && errno == EINTR)
 			continue;
@@ -990,10 +990,10 @@ exec_cmd(const char *cmd, const devinfo_t *dev, const char *descr)
 			}
 			return;
 		}
-		(void)sleep(1);
+		(void)usleep(1000);
 		i++;
 	}
-	if (i >= procmaxwait) {
+	if (i >= procmaxwait * 1000) {
 		/* Kill blocking process */
 		logprintx("Killing blocking process %u ...", pid);
 		for (sc = 0; sc < sizeof(sigs) / sizeof(int); sc++) {
