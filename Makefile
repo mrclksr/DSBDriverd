@@ -6,6 +6,7 @@ RCSCRIPT       = rc.d/${PROGRAM}
 MANFILE	       = man/${PROGRAM}.8
 LOGFILE	       = /var/log/${PROGRAM}.log
 PIDFILE	       = /var/run/${PROGRAM}.pid
+CFGFILE        = ${PREFIX}/etc/${PROGRAM}.conf
 PREFIX	      ?= /usr/local
 BINDIR	       = ${PREFIX}/libexec
 MANDIR	       = ${PREFIX}/man/man8
@@ -19,10 +20,12 @@ PROGRAM_FLAGS  = -Wall ${CFLAGS} ${CPPFLAGS} -DPROGRAM=\"${PROGRAM}\"
 PROGRAM_FLAGS += -DPATH_DRIVERS_DB=\"${DBDIR}/${DBFILE}\"
 PROGRAM_FLAGS += -DPATH_LOG=\"${LOGFILE}\"
 PROGRAM_FLAGS += -DPATH_PID_FILE=\"${PIDFILE}\"
+PROGRAM_FLAGS += -DPATH_CFG_FILE=\"${CFGFILE}\"
 PROGRAM_FLAGS += -DPATH_PCIID_DB0=\"${PCIDB0}\"
 PROGRAM_FLAGS += -DPATH_PCIID_DB1=\"${PCIDB1}\"
 PROGRAM_FLAGS += -DPATH_USBID_DB=\"${USBDB}\"
-PROGRAM_LIBS   = -lusb -lutil
+PROGRAM_FLAGS += -L${PREFIX}/lib -I${PREFIX}/include/lua52
+PROGRAM_LIBS   = -lusb -lutil -llua-5.2
 BSD_INSTALL_DATA    ?= install -m 0644
 BSD_INSTALL_SCRIPT  ?= install -m 555
 BSD_INSTALL_PROGRAM ?= install -s -m 555

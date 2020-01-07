@@ -47,6 +47,9 @@
 #include <paths.h>
 #include <libusb20_desc.h>
 #include <libusb20.h>
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
 
 #define MAX_PCI_DEVS	     32
 #define MAX_EXCLUDES	     256
@@ -82,6 +85,7 @@ typedef struct iface_s {
  * Struct to represent a device.
  */
 typedef struct devinfo_s {
+	char	*descr;
 	uint8_t  bus;
 #define BUS_TYPE_USB 1
 #define BUS_TYPE_PCI 2
@@ -96,6 +100,11 @@ typedef struct devinfo_s {
 	iface_t *iface;			/* USB interfaces. */
 } devinfo_t;
 
+struct cfg_s {
+	char	 **exclude;		/* List of modules to exclude */
+	size_t	 exclude_len;		/* Length of exclude list */
+} cfg = { (char **)NULL, 0 };
+
 static int	 ndevs;			/* # of devices. */
 static bool	 dryrun;		/* Do not load any drivers if true. */
 static FILE	 *db;			/* File pointer for drivers database. */
@@ -103,6 +112,7 @@ static FILE	 *logfp;		/* File pointer for logprint(). */
 static FILE	 *pcidb;		/* File pointer for PCI IDs database */
 static FILE	 *usbdb;		/* File pointer for USB IDs database */
 static char	 *exclude[MAX_EXCLUDES];/* List of drivers to exclude. */
+static lua_State *cfgstate;
 static devinfo_t *devlst;		/* List of devices. */
 static struct pidfh *pfh;		/* PID file handle. */
 
@@ -111,6 +121,9 @@ static int	 devd_connect(void);
 static int	 get_usb_devs(void);
 static int	 get_pci_devs(void);
 static int	 check(uint16_t, uint16_t);
+static int	 cfg_getint(lua_State *, const char *);
+static int	 cfg_call_function(lua_State *L, const char *,
+		     const devinfo_t *, const char *);
 static bool	 is_new(uint16_t, uint16_t, uint16_t, uint16_t);
 static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
 static bool	 match_ifclass(const devinfo_t *, uint16_t);
@@ -124,14 +137,22 @@ static void	 load_driver(const devinfo_t *);
 static void	 logprint(const char *, ...);
 static void	 logprintx(const char *, ...);
 static void	 open_dbs(void);
-static void	 exec_cmd(const char *, const devinfo_t *, const char *);
+static void	 open_cfg(void);
 static void	 usage(void);
 static void	 print_pci_devinfo(const devinfo_t *);
 static void	 print_usb_devinfo(const devinfo_t *);
+static void	 cfg_setstr(lua_State *, const char *, const char *);
+static void	 cfg_setint(lua_State *, const char *, int);
+static void	 cfg_setint_tbl_field(lua_State *, const char *, int);
+static void	 cfg_setstr_tbl_field(lua_State *, const char *, const char *);
+static void	 cfg_add_interface_tbl(lua_State *, const iface_t *);
+static void	 cfg_dev_to_tbl(lua_State *, const devinfo_t *dev);
 static char	 *int2char(uint16_t);
 static char	 *read_devd_event(int, int *);
 static char	 *find_driver(const devinfo_t *);
 static char	 *devdescr(FILE *, const devinfo_t *);
+static char	 *cfg_getstr(lua_State *, const char *);
+static char	 **cfg_getstrarr(lua_State *, const char *, size_t *);
 static devinfo_t *add_device(void);
 
 int
@@ -223,6 +244,7 @@ main(int argc, char *argv[])
 	}
 	if ((s = devd_connect()) == -1)
 		err(EXIT_FAILURE, "Couldn't connect to %s", PATH_DEVD_SOCKET);
+	open_cfg();
 	open_dbs();
 
 	(void)get_pci_devs();
@@ -307,38 +329,44 @@ usage()
 static void
 print_pci_devinfo(const devinfo_t *dev)
 {
-	char		*info, *p;
+	char		*p;
 	const devinfo_t	*dp;
 
-	info = devdescr(pcidb, dev);
 	for (dp = dev; (p = find_driver(dp)) != NULL; dp = NULL) {
 		(void)printf("vendor=%04x product=%04x " \
 		    "class=%02x subclass=%02x bus=PCI %s: %s\n",
 		    dev->vendor, dev->device, dev->class, dev->subclass,
-		    info != NULL ? info : "", p);
+		    dev->descr != NULL ? dev->descr : "", p);
 	}
+}
+
+static void
+die(const char *msg)
+{
+	logprint(msg);
+	exit(EXIT_FAILURE);
 }
 
 static void
 print_usb_devinfo(const devinfo_t *dev)
 {
 	int		i;
-	char		*info, *p;
+	char		*p;
 	const devinfo_t *dp;
 
-	info = devdescr(usbdb, dev);
 	for (dp = dev; (p = find_driver(dp)) != NULL; dp = NULL) {
 		(void)printf("vendor=%04x product=%04x " \
 		    "class=%02x subclass=%02x bus=USB %s: %s\n",
 		    dev->vendor, dev->device, dev->class, dev->subclass,
-		    info != NULL ? info : "", p);
+		    dev->descr != NULL ? dev->descr : "", p);
 		for (i = 0; i < dev->nifaces; i++) {
 			(void)printf("vendor=%04x product=%04x "    \
 			    "ifclass=%02x ifsubclass=%02x bus=USB " \
 			    "protocol=%02x %s: %s\n",
 			    dev->vendor, dev->device,
 			    dev->iface[i].class, dev->iface[i].subclass,
-			    dev->iface[i].protocol, info != NULL ? info : "", p);
+			    dev->iface[i].protocol,
+			    dev->descr != NULL ? dev->descr : "", p);
 		}
 	}
 }
@@ -624,6 +652,185 @@ open_dbs()
 		logprint("Warning: Could not open USB IDs database");
 }
 
+static int
+cfg_getint(lua_State *L, const char *var)
+{
+	int val = -1;
+
+	lua_getglobal(L, var);
+	if (lua_isnumber(L, -1))
+		val = lua_tointeger(L, -1);
+	lua_pop(L, 1);
+
+	return (val);
+}
+
+static char *
+cfg_getstr(lua_State *L, const char *var)
+{
+	char *val = NULL;
+
+	lua_getglobal(L, var);
+	if (!lua_isnil(L, -1))
+		val = strdup(lua_tostring(L, -1));
+	lua_pop(L, 1);
+
+	return (val);
+}
+
+static char **
+cfg_getstrarr(lua_State *L, const char *var, size_t *len)
+{
+	int  i;
+	char **arr;
+
+	lua_getglobal(L, var);
+	if (lua_isnil(L, -1))
+		return (NULL);
+	if (lua_type(L, -1) != LUA_TTABLE) {
+		logprintx("Syntax error: '%s' is not a string list", var);
+		return (NULL);
+	}
+	*len = lua_rawlen(L, -1);
+	if ((arr = malloc(*len * sizeof(char *))) == NULL)
+		return (NULL);
+	for (i = 0; i < *len; i++) {
+		lua_rawgeti(L, -1, i + 1);
+		if ((arr[i] = strdup(lua_tostring(L, -1))) == NULL) {
+			free(arr);
+			return (NULL);
+		}
+		lua_pop(L, 1);
+	}
+	return (arr);
+}
+
+static void
+cfg_setstr(lua_State *L, const char *var, const char *str)
+{
+	lua_pushstring(L, str);
+	lua_setglobal(L, var);
+}
+
+static void
+cfg_setint(lua_State *L, const char *var, int val)
+{
+	lua_pushnumber(L, val);
+	lua_setglobal(L, var);
+}
+
+static void
+cfg_setint_tbl_field(lua_State *L, const char *name, int val)
+{
+	lua_pushnumber(L, val);
+	lua_setfield(L, -2, name);
+}
+
+static void
+cfg_setstr_tbl_field(lua_State *L, const char *name, const char *val)
+{
+	if (val == NULL)
+		lua_pushnil(L);
+	else
+		lua_pushstring(L, val);
+	lua_setfield(L, -2, name);
+}
+
+static void
+cfg_add_interface_tbl(lua_State *L, const iface_t *iface)
+{
+	lua_newtable(L);
+	cfg_setint_tbl_field(L, "class", iface->class);
+	cfg_setint_tbl_field(L, "subclass", iface->subclass);
+	cfg_setint_tbl_field(L, "protocol", iface->protocol);
+}
+
+/*
+ * Create a Lua table from the given devinfo_t * object, and push it on the
+ * Lua stack.
+ */
+static void
+cfg_dev_to_tbl(lua_State *L, const devinfo_t *dev)
+{
+	int i;
+
+	lua_newtable(L);
+	cfg_setint_tbl_field(L, "bus", dev->bus);
+	cfg_setint_tbl_field(L, "vendor", dev->vendor);
+	cfg_setint_tbl_field(L, "device", dev->device);
+	cfg_setint_tbl_field(L, "subvendor", dev->subvendor);
+	cfg_setint_tbl_field(L, "subdevice", dev->subdevice);
+	cfg_setint_tbl_field(L, "class", dev->class);
+	cfg_setint_tbl_field(L, "subclass", dev->subclass);
+	cfg_setint_tbl_field(L, "revision", dev->revision);
+	cfg_setint_tbl_field(L, "nifaces", dev->nifaces);
+	cfg_setstr_tbl_field(L, "descr", dev->descr);
+
+	lua_newtable(L);
+	for (i = 0; i < dev->nifaces; i++) {
+		cfg_add_interface_tbl(L, &dev->iface[i]);
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "iface");
+}
+
+static int
+cfg_call_function(lua_State *L, const char *fname, const devinfo_t *dev,
+	const char *kmod)
+{
+	int error, nargs = 0;
+
+	error = -1;
+	if (L == NULL)
+		return (-1);
+	lua_getglobal(L, fname);
+	if (lua_type(L, -1) != LUA_TFUNCTION) {
+		logprintx("Syntax error: '%s' is not a function", fname);
+		goto out;
+	}
+	/* Push the given devinfo_t * object onto the Lua stack. */
+	cfg_dev_to_tbl(L, dev);
+	if (strcmp(fname, "on_load_kmod") == 0 ||
+	    strcmp(fname, "affirm") == 0) {
+		lua_pushstring(L, kmod);
+		nargs = 2;
+	} else
+		nargs = 1;
+	if (lua_pcall(L, nargs, 1, 0) != 0) {
+		logprintx("%s(): %s", fname, lua_tostring(cfgstate, -1));
+		goto out;
+	}
+	error = lua_tointeger(L, -1);
+out:
+	lua_settop(L, 0);
+
+	return (error);
+}
+
+static void
+open_cfg()
+{
+	int i, j;
+
+	cfgstate = NULL;
+	if (access(PATH_CFG_FILE, R_OK) == -1) {
+		if (errno == ENOENT)
+			return;
+		die("access()");
+	}
+	cfgstate = luaL_newstate();
+	luaL_openlibs(cfgstate);
+	if (luaL_dofile(cfgstate, PATH_CFG_FILE) != 0)
+		die(lua_tostring(cfgstate, -1));
+	cfg.exclude = cfg_getstrarr(cfgstate, "exclude", &cfg.exclude_len);
+	if (cfg.exclude != NULL) {
+		for (i = 0; exclude[i] != NULL; i++)
+			;
+		for (j = 0; i < MAX_EXCLUDES - 1 && j < cfg.exclude_len; j++)
+			exclude[i++] = cfg.exclude[j];
+		exclude[i] = NULL;
+	}
+}
 
 static int
 get_pci_devs()
@@ -659,7 +866,16 @@ get_pci_devs()
 			dip->revision  = conf[i].pc_revid;
 			dip->class     = conf[i].pc_class;
 			dip->subclass  = conf[i].pc_subclass;
+			dip->descr     = devdescr(pcidb, dip);
+			if (dip->descr != NULL) {
+				if ((dip->descr = strdup(dip->descr)) == NULL)
+					die("strdup()");
+			}
 			n++;
+			if (cfgstate != NULL) {
+				cfg_call_function(cfgstate, "on_add_device",
+				    dip, NULL);
+			}
 		}
 	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 	free(conf);
@@ -710,6 +926,15 @@ get_usb_devs()
 				    idesc->bInterfaceProtocol);
 			}
 			free(cfg);
+		}
+		dip->descr = devdescr(usbdb, dip);
+		if (dip->descr != NULL) {
+			if ((dip->descr = strdup(dip->descr)) == NULL)
+				die("strdup()");
+		}
+		if (cfgstate != NULL) {
+			cfg_call_function(cfgstate, "on_add_device",
+			    dip, NULL);
 		}
 		n++;
 	}
@@ -919,143 +1144,53 @@ int2char(uint16_t val)
 }
 
 static void
-exec_cmd(const char *cmd, const devinfo_t *dev, const char *descr)
-{
-	int	 i, procmaxwait, sc, status, sigs[2] = { SIGTERM, SIGKILL };
-	char	 var[64];
-	pid_t	 pid, ret;
-	sigset_t sigmask, savedmask;
-
-	procmaxwait = 10;
-
-	errno = 0;
-	/* Block SIGCHLD */
-	(void)sigemptyset(&sigmask); (void)sigaddset(&sigmask, SIGCHLD);
-	(void)sigprocmask(SIG_BLOCK, &sigmask, &savedmask);
-
-	switch ((pid = vfork())) {
-	case -1:
-		err(EXIT_FAILURE, "vfork()");
-		/* NOTREACHED */
-	case  0:
-		(void)setenv("DSBDRIVERD_VENDOR", int2char(dev->vendor), 1);
-		(void)setenv("DSBDRIVERD_DEVICE", int2char(dev->device), 1);
-		(void)setenv("DSBDRIVERD_SUBVENDOR",
-		    int2char(dev->subvendor), 1);
-		(void)setenv("DSBDRIVERD_SUBDEVICE",
-		    int2char(dev->subdevice), 1);
-		(void)setenv("DSBDRIVERD_DEVCLASS", int2char(dev->class), 1);
-		if (descr != NULL)
-			(void)setenv("DSBDRIVERD_DESCR", descr, 1);
-		if (dev->bus == BUS_TYPE_USB) {
-			(void)setenv("DSBDRIVERD_BUS", "USB", 1);
-			(void)setenv("DSBDRIVERD_INTERFACES",
-			    int2char(dev->nifaces), 1);
-			for (i = 0; i < dev->nifaces; i++) {
-				(void)snprintf(var, sizeof(var),
-				    "DSBDRIVERD_IFCLASS%d", i);
-				(void)setenv(var,
-				    int2char(dev->iface[i].class), 1);
-				(void)snprintf(var, sizeof(var),
-				    "DSBDRIVERD_IFSUBCLASS%d", i);
-				(void)setenv(var,
-				    int2char(dev->iface[i].subclass), 1);
-				(void)snprintf(var, sizeof(var),
-				    "DSBDRIVERD_IFPROTOCOL%d", i);
-				(void)setenv(var,
-				    int2char(dev->iface[i].protocol), 1);
-			}
-		} else
-			(void)setenv("DSBDRIVERD_BUS", "PCI", 1);
-		/* Restore old signal mask */
-		(void)sigprocmask(SIG_SETMASK, &savedmask, NULL);
-		execl(_PATH_BSHELL, _PATH_BSHELL, "-c", cmd, NULL);
-		_exit(255);
-		/* NOTREACHED */
-	default:
-		/* Restore old signal mask */
-		(void)sigprocmask(SIG_SETMASK, &savedmask, NULL);
-		break;
-	}
-	for (i = errno = 0; i < procmaxwait * 1000; errno = 0) {
-		ret = waitpid(pid, &status, WEXITED | WNOHANG);
-		if (ret == (pid_t)-1 && errno == EINTR)
-			continue;
-		else if (ret == (pid_t)-1)
-			err(EXIT_FAILURE, "waitpid()");
-		else if (ret == pid) {
-			if (WEXITSTATUS(status) != 0) {
-				logprintx("Command '%s' exited with code %d",
-				    cmd, WEXITSTATUS(status));
-			}
-			return;
-		}
-		(void)usleep(1000);
-		i++;
-	}
-	if (i >= procmaxwait * 1000) {
-		/* Kill blocking process */
-		logprintx("Killing blocking process %u ...", pid);
-		for (sc = 0; sc < sizeof(sigs) / sizeof(int); sc++) {
-			logprintx("Sending %s to %u ...",
-			    sc == 0 ? "SIGTERM" : "SIGKILL", pid);
-			(void)kill(pid, sigs[sc]);
-			for (i = errno = 0; i < 5; errno = 0) {
-				ret = waitpid(pid, &status, WEXITED | WNOHANG);
-				if (ret == (pid_t)-1 && errno == EINTR)
-					continue;
-				else if (ret == (pid_t)-1)
-					err(EXIT_FAILURE, "waitpid()");
-				else if (ret == pid)
-					return;
-				(void)sleep(1);
-				i++;
-			}
-		}
-	}
-}
-
-static void
 load_driver(const devinfo_t *dev)
 {
 	int		i;
-	char		*driver, *info;
+	char		*driver;
 	const devinfo_t *dp;
 
-	info = devdescr(dev->bus == BUS_TYPE_PCI ? pcidb : usbdb, dev);
 	for (dp = dev; (driver = find_driver(dp)) != NULL; dp = NULL) {
-		if (driver[0] == '!') {
-			/* Execute command */
-			exec_cmd(driver + 1, dev, info);
-			continue;
-		}
 		for (i = 0; exclude[i] != NULL; i++) {
 			if (strcmp(exclude[i], driver) == 0) {
 				logprintx("vendor=%04x product=%04x %s: " \
 				    "%s excluded from loading",
 				    dev->vendor, dev->device,
-				    info != NULL ? info : "", driver);
+				    dev->descr != NULL ? dev->descr : "",
+				    driver);
 				break;
 			}
 		}
 		if (exclude[i] != NULL)
 			continue;
+		if (cfgstate != NULL) {
+			if (cfg_call_function(cfgstate, "affirm",
+			    dev, driver) == 0) {
+				logprintx("affirm returned 0");
+				continue;
+			}
+			logprintx("affirm returned 1");
+		}
 		if (!find_kmod(driver)) {
 			logprintx("vendor=%04x product=%04x %s: " \
 			    "Loading %s", dev->vendor, dev->device,
-			    info != NULL ? info : "", driver);
+			    dev->descr != NULL ? dev->descr : "", driver);
 			if (!dryrun && kldload(driver) == -1)
 				logprint("kldload(%s)", driver);
-
+			if (cfgstate != NULL) {
+				cfg_call_function(cfgstate, "on_load_kmod",
+				    dev, driver);
+			}
 		} else {
 			logprintx("vendor=%04x product=%04x %s: %s already " \
 			    "loaded", dev->vendor, dev->device,
-			    info != NULL ? info : "", driver);
+			    dev->descr != NULL ? dev->descr : "", driver);
 		}
 	}
 	if (dp != NULL) {
 		logprintx("vendor=%04x product=%04x %s: No driver found",
-		    dev->vendor, dev->device, info != NULL ? info : "");
+		    dev->vendor, dev->device,
+		    dev->descr != NULL ? dev->descr : "");
 	}
 }
 
@@ -1133,4 +1268,3 @@ devdescr(FILE *iddb, const devinfo_t *dev)
 		return (info);
 	return (NULL);
 }
-
