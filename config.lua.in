@@ -1,7 +1,17 @@
+netif = require("@MODULE_PATH@/netif")
+
 -- Configuration variables
 --
 -- This is a string list of kernel module names to exclude from loading
 -- exclude = { "ichwd", "uhid" }
+
+-- This is a string list of network device to be ignored by the network
+-- setup functions
+-- ignore_netifs = { "ath0" }
+
+-- This is a boolean variable which controls the whether to auto configure
+-- network devices
+enable_netconfig = true
 
 ------------------------------------------------------------------------------
 -- Functions
@@ -30,8 +40,20 @@
 -- The on_load_kmod() function is called after loading a driver/kmod (string)
 -- for the given device object. The return value is ignored. 
 --
--- function on_load_kmod(dev, kmod)
--- end
+function on_load_kmod(dev, kmod)
+	if enable_netconfig then
+		is_netif, iftype = netif.match_netif_type(kmod)
+		if is_netif and iftype == netif.NETIF_TYPE_WLAN then
+			if netif.wait_for_new_wlan(kmod, 5) ~= nil then
+				netif.create_wlan_devs()
+			end
+		elseif is_netif and iftype == netif.NETIF_TYPE_ETHER then
+				if netif.wait_for_new_ether(kmod, 5) ~= nil then
+					netif.setup_ether_devs()
+				end
+		end
+	end
+end
 
 -- The on_add_device() function is called every time a new device was added,
 -- but before a driver was loaded. The return value is ignored.
@@ -40,9 +62,9 @@
 -- end
  
 -- The affirm() function is called before loading a kmod.
--- If affirm() returns a value != 0, the kmod will be loaded. Otherwise
+-- If affirm() returns "true", the kmod will be loaded. Otherwise
 -- loading is rejected.
 --
 -- function affirm(dev, kmod)
--- 	return 1
+-- 	return true
 -- end
