@@ -6,8 +6,8 @@ RCSCRIPT       = rc.d/${PROGRAM}
 MANFILE	       = man/${PROGRAM}.8
 LOGFILE	       = /var/log/${PROGRAM}.log
 PIDFILE	       = /var/run/${PROGRAM}.pid
-CFGFILE        = ${PREFIX}/etc/${PROGRAM}.conf
 PREFIX	      ?= /usr/local
+CFGDIR         = ${PREFIX}/etc/${PROGRAM}
 BINDIR	       = ${PREFIX}/libexec
 MANDIR	       = ${PREFIX}/man/man8
 RCDIR	       = ${PREFIX}/etc/rc.d
@@ -15,12 +15,14 @@ DBDIR	       = ${PREFIX}/share/${PROGRAM}
 USBDB	       = ${PREFIX}/share/usbids/usb.ids
 PCIDB0	       = ${PREFIX}/share/pciids/pci.ids
 PCIDB1	       = /usr/share/misc/pci_vendors
-INSTALL_TARGETS= ${PROGRAM} ${RCSCRIPT} ${MANFILE}
+CFGFILE        = config.lua
+CFGMODULES     = netif.lua
+INSTALL_TARGETS= ${PROGRAM} ${RCSCRIPT} ${CFGFILE} ${MANFILE}
 PROGRAM_FLAGS  = -Wall ${CFLAGS} ${CPPFLAGS} -DPROGRAM=\"${PROGRAM}\"
 PROGRAM_FLAGS += -DPATH_DRIVERS_DB=\"${DBDIR}/${DBFILE}\"
 PROGRAM_FLAGS += -DPATH_LOG=\"${LOGFILE}\"
 PROGRAM_FLAGS += -DPATH_PID_FILE=\"${PIDFILE}\"
-PROGRAM_FLAGS += -DPATH_CFG_FILE=\"${CFGFILE}\"
+PROGRAM_FLAGS += -DPATH_CFG_FILE=\"${CFGDIR}/${CFGFILE}\"
 PROGRAM_FLAGS += -DPATH_PCIID_DB0=\"${PCIDB0}\"
 PROGRAM_FLAGS += -DPATH_PCIID_DB1=\"${PCIDB1}\"
 PROGRAM_FLAGS += -DPATH_USBID_DB=\"${USBDB}\"
@@ -40,6 +42,9 @@ ${RCSCRIPT}: ${RCSCRIPT}.tmpl
 	    -e 's|@PATH_PIDFILE@|${PIDFILE}|g' \
 	< ${.ALLSRC} > ${RCSCRIPT}
 
+${CFGFILE}: ${CFGFILE}.in
+	sed -e 's|@MODULE_PATH@|${CFGDIR}|g' < ${.ALLSRC} > ${CFGFILE}
+
 ${MANFILE}: ${MANFILE}.tmpl
 	sed -e 's|@PATH_DB@|${DBDIR}/${DBFILE}|g' \
 	    -e 's|@PATH_LOG@|${LOGFILE}|g' \
@@ -49,8 +54,11 @@ install: ${INSTALL_TARGETS}
 	${BSD_INSTALL_PROGRAM} ${PROGRAM} ${DESTDIR}${BINDIR}
 	${BSD_INSTALL_SCRIPT} ${RCSCRIPT} ${DESTDIR}${RCDIR}
 	-@mkdir ${DESTDIR}${DBDIR}
+	-@mkdir ${DESTDIR}${CFGDIR}
 	${BSD_INSTALL_DATA} ${DBFILE} ${DESTDIR}${DBDIR}
 	${BSD_INSTALL_DATA} ${MANFILE} ${DESTDIR}${MANDIR}
+	${BSD_INSTALL_DATA} ${CFGFILE} ${DESTDIR}${CFGDIR}
+	${BSD_INSTALL_DATA} ${CFGMODULES} ${DESTDIR}${CFGDIR}
 
 readme: readme.mdoc
 	mandoc -mdoc readme.mdoc | perl -e 'foreach (<STDIN>) { \
@@ -63,5 +71,6 @@ readmemd: readme.mdoc
 clean:
 	-rm -f ${PROGRAM}
 	-rm -f ${RCSCRIPT}
+	-rm -f ${CFGFILE}
 	-rm -f ${MANFILE}
 
