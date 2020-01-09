@@ -278,23 +278,35 @@ function netif.create_wlan_devs()
 			end
 		end
 	end
-
+	-- Create a child device for each parent device which doesn't have
+	-- a child ("wlanX"), and wasn't configured via /etc/rc.conf with
+	-- 'wlans_parent="wlan<max_unit>"'
 	for _, w in pairs(wlans) do
-		if w.child == nil then
-			-- No child device yet. If the parent device is not to
-			-- exclude, we can create the child device.
+		if not netif.wlan_rc_configured(w) or w.child == nil then
+			-- If the parent device is not to exclude, we can create
+			-- the child device.
 			if ignore_netifs == nil or
 			   netif.find_netif(w.parent, ignore_netifs) == nil then
-				-- Create a wlanX device
-				max_unit = max_unit + 1
+				-- If w.child is nil, we create a new wlanX device
+				-- (X = max_unit + 1). Else, we are here because a wlan
+				-- device was created via /etc/rc.conf, but the wlanX device
+				-- doesn't match w.child, so we have to correct that.
+				if w.child == nil then
+					max_unit = max_unit + 1
+					w.child = max_unit
+				end
 				cmd = string.format("sysrc wlans_%s=\"wlan%d\"", w.parent,
-				    max_unit)
+				    w.child)
 				os.execute(cmd)
 				cmd = string.format("sysrc ifconfig_wlan%d=\"up scan WPA DHCP\"",
-				    max_unit)
+				    w.child)
 				os.execute(cmd)
-				child = "wlan" .. max_unit
-				os.execute("service netif restart " .. child)
+				child = "wlan" .. w.child
+				status = netif.link_status(child)
+				-- Only restart the interface if is isn't already associated
+				if status ~= "associated" then
+					os.execute("service netif restart " .. child)
+				end
 			end
 		end
 	end
