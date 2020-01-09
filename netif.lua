@@ -348,8 +348,10 @@ function netif.setup_ether_devs()
 		if ignore_netifs == nil or
 		  netif.find_netif(w.parent, ignore_netifs) == nil then
 			if not string.match(i, "wlan") then
-				cmd = string.format("sysrc ifconfig_%s=\"DHCP\"", i)
-				os.execute(cmd)
+				if not netif.in_rc_conf(i) then
+					cmd = string.format("sysrc ifconfig_%s=\"DHCP\"", i)
+					os.execute(cmd)
+				end
 				os.execute("service netif restart " .. i)
 			end
 		end
