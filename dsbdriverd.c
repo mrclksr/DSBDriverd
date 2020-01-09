@@ -790,13 +790,17 @@ cfg_call_function(lua_State *L, const char *fname, const devinfo_t *dev,
 		logprintx("Syntax error: '%s' is not a function", fname);
 		goto out;
 	}
-	/* Push the given devinfo_t * object onto the Lua stack. */
-	cfg_dev_to_tbl(L, dev);
+	if (dev != NULL) {
+		/* Push the given devinfo_t * object onto the Lua stack. */
+		cfg_dev_to_tbl(L, dev);
+	}
 	if (strcmp(fname, "on_load_kmod") == 0 ||
 	    strcmp(fname, "affirm") == 0) {
 		lua_pushstring(L, kmod);
 		nargs = 2;
-	} else
+	} else if (strcmp(fname, "init") == 0)
+		nargs = 0;
+	else
 		nargs = 1;
 	if (lua_pcall(L, nargs, 1, 0) != 0) {
 		logprintx("%s(): %s", fname, lua_tostring(cfgstate, -1));
@@ -824,6 +828,7 @@ open_cfg()
 	luaL_openlibs(cfgstate);
 	if (luaL_dofile(cfgstate, PATH_CFG_FILE) != 0)
 		die(lua_tostring(cfgstate, -1));
+	cfg_call_function(cfgstate, "init", NULL, NULL);
 	cfg.exclude = cfg_getstrarr(cfgstate, "exclude", &cfg.exclude_len);
 	if (cfg.exclude != NULL) {
 		for (i = 0; exclude[i] != NULL; i++)

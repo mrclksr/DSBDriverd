@@ -38,6 +38,15 @@ enable_netconfig = true
 --	protocol  ::= Device protocol
 --
 
+-- The init() function is run on startup before adding devices. It doesn't
+-- take any arguments. The return value is ignored.
+function init()
+	if enable_netconfig then
+		netif.setup_ether_devs()
+		netif.create_wlan_devs()
+	end
+end
+
 -- The on_load_kmod() function is called after loading a driver/kmod (string)
 -- for the given device object. The return value is ignored. 
 --
