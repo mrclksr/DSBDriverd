@@ -1,4 +1,5 @@
-netif = require("@MODULE_PATH@/netif")
+package.path = "@MODULE_PATH@?;" .. package.path
+netif = require("netif")
 
 -- Configuration variables
 --
