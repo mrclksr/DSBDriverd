@@ -783,9 +783,9 @@ cfg_call_function(lua_State *L, const char *fname, const devinfo_t *dev,
 	error = -1;
 	if (L == NULL)
 		return (-1);
+	lua_getglobal(L, fname);
 	if (lua_isnil(L, -1))
 		goto out;
-	lua_getglobal(L, fname);
 	if (lua_type(L, -1) != LUA_TFUNCTION) {
 		logprintx("Syntax error: '%s' is not a function", fname);
 		goto out;
