@@ -168,6 +168,66 @@ function netif.get_netifs()
 	return iflist
 end
 
+-- Returns the given network interface's status
+function netif.link_status(ifname)
+	proc = io.popen("ifconfig " .. ifname)
+	for l in proc:lines() do
+		if string.match(l, "^[ \t]*status: (%w+)") then
+			status = string.gsub(l, "^[ \t]*status: (%w+)$", "%1")
+			if status ~= nil then
+				proc:close()
+				return status
+			end
+		end
+	end
+	proc:close()
+	return nil
+end
+
+-- Returns "true" if the given network interface was configured
+-- via /etc/rc.conf
+function netif.in_rc_conf(ifname)
+	f = io.open("/etc/rc.conf")
+	for l in f:lines() do
+		if string.match(l, "^[ \t]*ifconfig_" .. ifname) then
+			f:close()
+			return true
+		end
+	end
+	f:close()
+	return false
+end
+
+-- Returns a list of wlan device objects configured via /etc/rc.conf
+function netif.wlans_from_rc_conf()
+	wlans = {}
+	f = io.open("/etc/rc.conf")
+	i = 1
+	for l in f:lines() do
+		p, c = string.match(l, "^[ \t]*wlans_(%w+)=\"?(%w+)\"?")
+		if p ~= nil and c ~= nil then
+			wlans[i] = {}
+			wlans[i].parent = p
+			wlans[i].child = tonumber(string.match(c, "wlan(%d+)"))
+			i = i + 1
+		end
+	end
+	f:close()
+	return wlans
+end
+
+-- Returns "true" if the given wlan device object was configured via
+-- /etc/rc.conf, else "false".
+function netif.wlan_rc_configured(wlan)
+	wlans = netif.wlans_from_rc_conf()
+	for _, w in pairs(wlans) do
+		if w.parent == wlan.parent and w.child == wlan.child then
+			return true
+		end
+	end
+	return false
+end
+
 -- Sleeps n seconds
 function netif.sleep(n)
 	os.execute("sleep " .. tonumber(n))
