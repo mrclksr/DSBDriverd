@@ -29,8 +29,10 @@ enable_netconfig = true
 --	class     ::= device class ID
 --	subclass  ::= device subclass ID
 --	revision  ::= Revision number
+--	ndrivers  ::= Number of associated drivers in drivers[]
 --	nifaces   ::= Number of USB interfaces
 --	iface[]   ::= An array of "nifaces" USB interface objects (see below)
+--	drivers[] ::= An array of associated drivers (strings).
 --
 -- The USB interface object structure contains the following fields:
 --	class     ::= Device class ID
