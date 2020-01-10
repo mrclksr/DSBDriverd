@@ -289,6 +289,40 @@ function netif.wlan_rc_configured(wlan)
 	return false
 end
 
+-- Returns the country code of the region defined in /var/db/zoneinfo,
+-- or nil if not found
+function netif.get_wlan_region()
+	local l, zone, code
+	local f, e = io.open("/var/db/zoneinfo")
+	if f == nil then
+		io.stderr:write(e)
+		return nil
+	end
+	for l in f:lines() do
+		if string.match(l, "/") then
+			zone = l
+			break
+		end
+	end
+	f:close()
+	if not zone then
+		return nil
+	end
+	f, e = io.open("/usr/share/zoneinfo/zone.tab")
+	if f == nil then
+		io.stderr:write(e)
+		return nil
+	end
+	for l in f:lines() do
+		code = string.match(l, "^(%u+)%s+[0-9+-]+%s+" .. zone)
+		if code then
+			break
+		end
+	end
+	f:close()
+	return code
+end
+
 -- Sleeps n seconds
 function netif.sleep(n)
 	os.execute("sleep " .. tonumber(n))
@@ -356,8 +390,8 @@ function netif.create_wlan_devs()
 					max_unit = max_unit + 1
 					w.child = max_unit
 				end
-				local cmd = string.format("sysrc wlans_%s=\"wlan%d\"", w.parent,
-				    w.child)
+				local cmd = string.format("sysrc wlans_%s=\"wlan%d\"",
+				    w.parent, w.child)
 				os.execute(cmd)
 				local cmd = string.format("sysrc ifconfig_wlan%d=\"up scan WPA DHCP\"",
 				    w.child)
