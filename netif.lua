@@ -360,9 +360,23 @@ end
 -- Creates and configures a new wlan child device (wlanX) for each wlan
 -- device object which doesn't have a child device yet.
 function netif.create_wlan_devs()
-	create_cmd = "ifconfig_wlan%d up scan WPA DHCP"
 	local w, max_unit
 	local wlans = netif.get_wlan_devs()
+
+	if wlan_set_country then
+		local country = netif.get_wlan_region()
+		if country then
+			local args = "down country " .. country
+			if wlan_create_args ~= nil then
+				wlan_create_args = args .. " " .. wlan_create_args
+			else
+				wlan_create_args = args
+			end
+		end
+	end
+	if wlan_ifconfig_args == nil then
+		wlan_ifconfig_args = "up scan WPA DHCP"
+	end
 
 	-- Calculate the next available unit number for the child device
 	max_unit = -1
@@ -393,8 +407,13 @@ function netif.create_wlan_devs()
 				local cmd = string.format("sysrc wlans_%s=\"wlan%d\"",
 				    w.parent, w.child)
 				os.execute(cmd)
-				local cmd = string.format("sysrc ifconfig_wlan%d=\"up scan WPA DHCP\"",
-				    w.child)
+				if wlan_create_args then
+					cmd = string.format("sysrc create_args_wlan%d=\"%s\"",
+										w.child, wlan_create_args)
+					os.execute(cmd)
+				end
+				cmd = string.format("sysrc ifconfig_wlan%d=\"%s\"",
+									w.child, wlan_ifconfig_args)
 				os.execute(cmd)
 				local child = "wlan" .. w.child
 				local status = netif.link_status(child)
