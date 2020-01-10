@@ -31,7 +31,8 @@ netif.NETIF_TYPE_ETHER = 2
 -- Returns a pair, (true|false, NETIF_TYPE_WLAN|NETIF_TYPE_ETHER|nil),
 -- if the given driver name matches an ethernet or wireless device driver.
 function netif.match_netif_type(driver)
-	wlan_kmods = {
+	local m
+	local wlan_kmods = {
 		"if_zyd",  "if_ath",      "if_bwi",      "if_bwn",
 		"if_ipw",  "if_iwi",      "if_iwm",      "if_iwn",
 		"if_malo", "if_mwl",      "if_otus",     "if_ral",
@@ -39,7 +40,7 @@ function netif.match_netif_type(driver)
 		"if_run",  "if_uath",     "if_upgt",     "if_ural",
 		"if_urtw", "if_wi"
 	}
-	ether_kmods = {
+	local ether_kmods = {
 		"if_ae",   "if_age",      "if_alc",      "if_ale",
 		"if_aue",  "if_axe",      "if_bce",      "if_bfe",
 		"if_bge",  "if_bnxt",     "if_bxe",      "if_cas",
@@ -76,7 +77,7 @@ end
 -- Takes the name of a kernel module, and removes the "if_" prefix and
 -- the "_pci" or "_usb" suffix. Returns the new string.
 function netif.kmod_to_dev(kmod)
-	dev = kmod
+	local dev = kmod
 	if string.match(kmod, ".*_pci$") or string.match(kmod, ".*_usb$") then
 		dev = string.sub(kmod, 1, string.len(kmod) - 4)
 	end
@@ -89,6 +90,7 @@ end
 -- Takes a device name without unit number (e.g. ath, rtwn), and a list of
 -- network devices. Returns the name of the interface if found, nil otherwise.
 function netif.find_netif(dev, netifs)
+	local d
 	for _, d in pairs(netifs) do
 		if d == dev or string.match(d, dev .. "[0-9]+") then
 			return d
@@ -100,7 +102,8 @@ end
 -- Returns the the unit (X) of a "wlanX" device name to a given
 -- parent device, or nil
 local function wlan_unit_from_parent(pdev)
-	proc, e = io.popen("sysctl net.wlan")
+	local l
+	local proc, e = io.popen("sysctl net.wlan")
 	if proc == nil then
 		io.stderr:write(e)
 		return nil
@@ -121,9 +124,10 @@ end
 -- This function returns a list of available wlan device objects, or an empty
 -- list if there are none.
 function netif.get_wlan_devs()
-	pdevs = {}
-	wlans = {}
-	proc, e = io.popen("sysctl -n net.wlan.devices")
+	local i, l, parent
+	local pdevs = {}
+	local wlans = {}
+	local proc, e = io.popen("sysctl -n net.wlan.devices")
 	if proc == nil then
 		io.stderr:write(e)
 		return nil
@@ -150,6 +154,7 @@ end
 -- Returns the wlan device object from the given list matching the given
 -- parent device pattern, or nil if there was no match.
 function netif.find_wlan(parent, wlans)
+	local w
 	for _, w in pairs(wlans) do
 		if string.match(w.parent, parent .. "[0-9]+") then
 			return w
@@ -158,19 +163,46 @@ function netif.find_wlan(parent, wlans)
 	return nil
 end
 
--- Returns the list of network interfaces from the output of "ifconfig" as
--- array.
-function netif.get_netifs()
-	iflist = {}
-	proc, e = io.popen("ifconfig -l")
+-- Returns the network interface's media type or nil
+function netif.media_type(ifname)
+	local l
+	local proc, e = io.popen("ifconfig " .. ifname)
 	if proc == nil then
 		io.stderr:write(e)
 		return nil
 	end
-	i = 1
+	for l in proc:lines() do
+		type = string.match(l, "^%s+media:%s([%g,%s]+)$")
+		if type then
+			proc:close()
+			if string.match(type, "%s[wW]ireless%s") or
+			   string.match(type, "%s802.11%s") then
+				return netif.NETIF_TYPE_WLAN
+			elseif string.match(type, "^[Ee]thernet") then
+				return netif.NETIF_TYPE_ETHER
+			else
+				return nil
+			end
+		end
+	end
+	proc:close()
+	return nil
+end
+
+-- Returns the list of network interfaces from the output of "ifconfig" as
+-- array.
+function netif.get_netifs()
+	local iflist = {}
+	local proc, e = io.popen("ifconfig -l")
+	if proc == nil then
+		io.stderr:write(e)
+		return nil
+	end
+	local i = 1
 	for l in proc:lines() do
 		for w in string.gmatch(l, "%w+") do
-			if not string.match(w, "lo0") then
+			type = netif.media_type(w)
+			if type ~= nil then
 				iflist[i] = w
 				i = i + 1
 			end
@@ -182,7 +214,9 @@ end
 
 -- Returns the given network interface's status
 function netif.link_status(ifname)
-	proc, e = io.popen("ifconfig " .. ifname)
+	local l, status
+	local proc, e = io.popen("ifconfig " .. ifname)
+
 	if proc == nil then
 		io.stderr:write(e)
 		return nil
@@ -203,7 +237,8 @@ end
 -- Returns "true" if the given network interface was configured
 -- via /etc/rc.conf
 function netif.in_rc_conf(ifname)
-	f, e = io.open("/etc/rc.conf")
+	local l
+	local f, e = io.open("/etc/rc.conf")
 	if f == nil then
 		io.stderr:write(e)
 		return nil
@@ -220,15 +255,16 @@ end
 
 -- Returns a list of wlan device objects configured via /etc/rc.conf
 function netif.wlans_from_rc_conf()
-	wlans = {}
-	f, e = io.open("/etc/rc.conf")
+	local i, l
+	local wlans = {}
+	local f, e = io.open("/etc/rc.conf")
 	if f == nil then
 		io.stderr:write(e)
 		return nil
 	end
 	i = 1
 	for l in f:lines() do
-		p, c = string.match(l, "^[ \t]*wlans_(%w+)=\"?(%w+)\"?")
+		local p, c = string.match(l, "^[ \t]*wlans_(%w+)=\"?(%w+)\"?")
 		if p ~= nil and c ~= nil then
 			wlans[i] = {}
 			wlans[i].parent = p
@@ -243,7 +279,8 @@ end
 -- Returns "true" if the given wlan device object was configured via
 -- /etc/rc.conf, else "false".
 function netif.wlan_rc_configured(wlan)
-	wlans = netif.wlans_from_rc_conf()
+	local w
+	local wlans = netif.wlans_from_rc_conf()
 	for _, w in pairs(wlans) do
 		if w.parent == wlan.parent and w.child == wlan.child then
 			return true
@@ -264,15 +301,15 @@ end
 function netif.wait_for_new_wlan(driver, timeout)
 	-- Get the corresponding device name without unit number from the
 	-- given driver (e.g., if_rtwn_usb -> rtwn)
-	devname = netif.kmod_to_dev(driver)
+	local devname = netif.kmod_to_dev(driver)
 
-	tries = 1
+	local tries = 1
 	while true do
 		-- Periodically check for the parent device to appear
 		-- in net.wlan.devices. After loading the driver it
 		-- can take a moment for the device to appear.
-		wlans = netif.get_wlan_devs()
-		w = netif.find_wlan(devname, wlans)
+		local wlans = netif.get_wlan_devs()
+		local w = netif.find_wlan(devname, wlans)
 		if w == nil then
 			if tries >= timeout then
 				-- Give up
@@ -290,8 +327,8 @@ end
 -- device object which doesn't have a child device yet.
 function netif.create_wlan_devs()
 	create_cmd = "ifconfig_wlan%d up scan WPA DHCP"
-	
-	wlans = netif.get_wlan_devs()
+	local w, max_unit
+	local wlans = netif.get_wlan_devs()
 
 	-- Calculate the next available unit number for the child device
 	max_unit = -1
@@ -319,14 +356,14 @@ function netif.create_wlan_devs()
 					max_unit = max_unit + 1
 					w.child = max_unit
 				end
-				cmd = string.format("sysrc wlans_%s=\"wlan%d\"", w.parent,
+				local cmd = string.format("sysrc wlans_%s=\"wlan%d\"", w.parent,
 				    w.child)
 				os.execute(cmd)
-				cmd = string.format("sysrc ifconfig_wlan%d=\"up scan WPA DHCP\"",
+				local cmd = string.format("sysrc ifconfig_wlan%d=\"up scan WPA DHCP\"",
 				    w.child)
 				os.execute(cmd)
-				child = "wlan" .. w.child
-				status = netif.link_status(child)
+				local child = "wlan" .. w.child
+				local status = netif.link_status(child)
 				-- Only restart the interface if is isn't already associated
 				if status ~= "associated" then
 					os.execute("service netif restart " .. child)
@@ -342,15 +379,15 @@ end
 function netif.wait_for_new_ether(driver, timeout)
 	-- Get the corresponding device name without unit number from the
 	-- given driver (e.g., if_rtwn_usb -> rtwn)
-	devname = netif.kmod_to_dev(driver)
+	local devname = netif.kmod_to_dev(driver)
 
-	tries = 1
+	local tries = 1
 	while true do
 		-- Periodically check for the device to appear in the network
 		-- interface list. After loading the driver it can take a moment
 		-- for the device to appear.
-		iflist = netif.get_netifs()
-		ifname = netif.find_netif(devname, iflist)
+		local iflist = netif.get_netifs()
+		local ifname = netif.find_netif(devname, iflist)
 		if ifname == nil then
 			if tries >= timeout then
 				-- Give up
@@ -366,14 +403,15 @@ end
 
 -- Starts DHCP on each ethernet device.
 function netif.setup_ether_devs()
-	iflist = netif.get_netifs()
+	local i
+	local iflist = netif.get_netifs()
 
 	for _, i in pairs(iflist) do
 		if ignore_netifs == nil or
 		  netif.find_netif(w.parent, ignore_netifs) == nil then
 			if not string.match(i, "wlan") then
 				if not netif.in_rc_conf(i) then
-					cmd = string.format("sysrc ifconfig_%s=\"DHCP\"", i)
+					local cmd = string.format("sysrc ifconfig_%s=\"DHCP\"", i)
 					os.execute(cmd)
 				end
 				os.execute("service netif restart " .. i)
