@@ -1,4 +1,4 @@
-package.path = "@MODULE_PATH@/.?;" .. package.path
+package.path = "@MODULE_PATH@/?.lua;" .. package.path
 netif = require("netif")
 
 -- Configuration variables
