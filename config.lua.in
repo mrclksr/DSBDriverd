@@ -80,3 +80,9 @@ end
 -- function affirm(dev, kmod)
 -- 	return true
 -- end
+
+-- The on_finished() function is called when all drivers for a device have
+-- been loaded. The return value is ignored.
+--
+-- function on_finished(dev)
+-- end
