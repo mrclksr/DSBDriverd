@@ -419,5 +419,20 @@ function netif.setup_ether_devs()
 		end
 	end
 end
-return netif
 
+-- Configures and starts all network interfaces based on the given driver/kmod
+-- name.
+function netif.config_netif(kmod)
+	local is_netif, iftype = netif.match_netif_type(kmod)
+	if is_netif and iftype == netif.NETIF_TYPE_WLAN then
+		if netif.wait_for_new_wlan(kmod, 5) ~= nil then
+			netif.create_wlan_devs()
+		end
+	elseif is_netif and iftype == netif.NETIF_TYPE_ETHER then
+		if netif.wait_for_new_ether(kmod, 5) ~= nil then
+			netif.setup_ether_devs()
+		end
+	end
+end
+
+return netif
