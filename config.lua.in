@@ -14,6 +14,10 @@ netif = require("netif")
 -- network devices
 enable_netconfig = true
 
+-- This variable defines the maximum number of seconds to wait for a network
+-- interface to appear (after loading its driver).
+netif_wait_max = 5
+
 ------------------------------------------------------------------------------
 -- Functions
 --
