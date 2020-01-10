@@ -100,7 +100,11 @@ end
 -- Returns the the unit (X) of a "wlanX" device name to a given
 -- parent device, or nil
 local function wlan_unit_from_parent(pdev)
-	proc = io.popen("sysctl net.wlan")
+	proc, e = io.popen("sysctl net.wlan")
+	if proc == nil then
+		io.stderr:write(e)
+		return nil
+	end
 	for l in proc:lines() do
 		if string.match(l, "%%parent") and string.match(l, pdev) then
 			return tonumber(string.match(l, "net.wlan.([0-9]+)."))
@@ -119,7 +123,11 @@ end
 function netif.get_wlan_devs()
 	pdevs = {}
 	wlans = {}
-	proc = io.popen("sysctl -n net.wlan.devices")
+	proc, e = io.popen("sysctl -n net.wlan.devices")
+	if proc == nil then
+		io.stderr:write(e)
+		return nil
+	end
 	i = 1
 	for l in proc:lines() do
 		for w in string.gmatch(l, "%w+") do
@@ -154,7 +162,11 @@ end
 -- array.
 function netif.get_netifs()
 	iflist = {}
-	proc = io.popen("ifconfig -l")
+	proc, e = io.popen("ifconfig -l")
+	if proc == nil then
+		io.stderr:write(e)
+		return nil
+	end
 	i = 1
 	for l in proc:lines() do
 		for w in string.gmatch(l, "%w+") do
@@ -170,7 +182,11 @@ end
 
 -- Returns the given network interface's status
 function netif.link_status(ifname)
-	proc = io.popen("ifconfig " .. ifname)
+	proc, e = io.popen("ifconfig " .. ifname)
+	if proc == nil then
+		io.stderr:write(e)
+		return nil
+	end
 	for l in proc:lines() do
 		if string.match(l, "^[ \t]*status: (%w+)") then
 			status = string.gsub(l, "^[ \t]*status: ([%w, ]+)$", "%1")
@@ -187,7 +203,11 @@ end
 -- Returns "true" if the given network interface was configured
 -- via /etc/rc.conf
 function netif.in_rc_conf(ifname)
-	f = io.open("/etc/rc.conf")
+	f, e = io.open("/etc/rc.conf")
+	if f == nil then
+		io.stderr:write(e)
+		return nil
+	end
 	for l in f:lines() do
 		if string.match(l, "^[ \t]*ifconfig_" .. ifname) then
 			f:close()
@@ -201,7 +221,11 @@ end
 -- Returns a list of wlan device objects configured via /etc/rc.conf
 function netif.wlans_from_rc_conf()
 	wlans = {}
-	f = io.open("/etc/rc.conf")
+	f, e = io.open("/etc/rc.conf")
+	if f == nil then
+		io.stderr:write(e)
+		return nil
+	end
 	i = 1
 	for l in f:lines() do
 		p, c = string.match(l, "^[ \t]*wlans_(%w+)=\"?(%w+)\"?")
