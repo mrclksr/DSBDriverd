@@ -18,6 +18,16 @@ enable_netconfig = true
 -- interface to appear (after loading its driver).
 netif_wait_max = 5
 
+-- This is a boolean variable which controls whether to set country/region
+-- on wlan devices
+wlan_set_country = true
+
+-- This is a string containing ifconfig arguments for creating a wlan device
+-- wlan_create_args = ""
+
+-- This is a string containing ifconfig arguments to start the wlan interfaces.
+-- wlan_ifconfig_args = ""
+
 ------------------------------------------------------------------------------
 -- Functions
 --
