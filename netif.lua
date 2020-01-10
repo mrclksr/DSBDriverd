@@ -173,7 +173,7 @@ function netif.link_status(ifname)
 	proc = io.popen("ifconfig " .. ifname)
 	for l in proc:lines() do
 		if string.match(l, "^[ \t]*status: (%w+)") then
-			status = string.gsub(l, "^[ \t]*status: (%w+)$", "%1")
+			status = string.gsub(l, "^[ \t]*status: ([%w, ]+)$", "%1")
 			if status ~= nil then
 				proc:close()
 				return status
