@@ -86,6 +86,7 @@ typedef struct iface_s {
  */
 typedef struct devinfo_s {
 	char	*descr;
+	char	**drivers;		/* List of associated drivers */
 	uint8_t  bus;
 #define BUS_TYPE_USB 1
 #define BUS_TYPE_PCI 2
@@ -96,6 +97,7 @@ typedef struct devinfo_s {
 	uint16_t class;			/* USB/PCI device class */
 	uint16_t subclass;		/* USB/PCI device subclass */
 	uint16_t revision;		/* Device revision. */
+	uint16_t ndrivers;		/* # of drivers for this device */
 	uint16_t nifaces;		/* # of USB interfaces. */
 	iface_t *iface;			/* USB interfaces. */
 } devinfo_t;
@@ -132,8 +134,9 @@ static bool	 parse_devd_event(char *);
 static bool	 find_kmod(const char *);
 static void	 lockpidfile(void);
 static void	 netstart(const char *);
+static void	 add_driver(devinfo_t *, const char *);
 static void	 add_iface(devinfo_t *, uint16_t, uint16_t, uint16_t);
-static void	 load_driver(const devinfo_t *);
+static void	 load_driver(devinfo_t *);
 static void	 logprint(const char *, ...);
 static void	 logprintx(const char *, ...);
 static void	 open_dbs(void);
@@ -568,6 +571,25 @@ netstart(const char *ifdev)
 	}
 }
 
+static void
+add_driver(devinfo_t *dev, const char *driver)
+{
+	int i;
+
+	for (i = 0; i < dev->ndrivers; i++) {
+		if (strcmp(dev->drivers[i], driver) == 0)
+			return;
+	}
+	dev->drivers = realloc(dev->drivers,
+	    sizeof(char *) * (dev->ndrivers + 1));
+	if (dev->drivers == NULL)
+		die("realloc()");
+	dev->drivers[dev->ndrivers] = strdup(driver);
+	if (dev->drivers[dev->ndrivers] == NULL)
+		die("strdup()");
+	dev->ndrivers++;
+}
+
 static devinfo_t *
 add_device()
 {
@@ -765,7 +787,14 @@ cfg_dev_to_tbl(lua_State *L, const devinfo_t *dev)
 	cfg_setint_tbl_field(L, "revision", dev->revision);
 	cfg_setint_tbl_field(L, "nifaces", dev->nifaces);
 	cfg_setstr_tbl_field(L, "descr", dev->descr);
+	cfg_setint_tbl_field(L, "ndrivers", dev->ndrivers);
 
+	lua_newtable(L);
+	for (i = 0; i < dev->ndrivers; i++) {
+		lua_pushstring(L, dev->drivers[i]);
+		lua_rawseti(L, -2, i + 1);
+	}
+	lua_setfield(L, -2, "drivers");
 	lua_newtable(L);
 	for (i = 0; i < dev->nifaces; i++) {
 		cfg_add_interface_tbl(L, &dev->iface[i]);
@@ -1151,13 +1180,14 @@ int2char(uint16_t val)
 }
 
 static void
-load_driver(const devinfo_t *dev)
+load_driver(devinfo_t *dev)
 {
 	int		i;
 	char		*driver;
 	const devinfo_t *dp;
 
 	for (dp = dev; (driver = find_driver(dp)) != NULL; dp = NULL) {
+		add_driver(dev, driver);
 		for (i = 0; exclude[i] != NULL; i++) {
 			if (strcmp(exclude[i], driver) == 0) {
 				logprintx("vendor=%04x product=%04x %s: " \
