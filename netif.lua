@@ -33,32 +33,32 @@ netif.NETIF_TYPE_ETHER = 2
 function netif.match_netif_type(driver)
 	local m
 	local wlan_kmods = {
-		"if_zyd",  "if_ath",      "if_bwi",      "if_bwn",
-		"if_ipw",  "if_iwi",      "if_iwm",      "if_iwn",
-		"if_malo", "if_mwl",      "if_otus",     "if_ral",
-		"if_rsu",  "if_rtwn_usb", "if_rtwn_pci", "if_rum",
-		"if_run",  "if_uath",     "if_upgt",     "if_ural",
-		"if_urtw", "if_wi"
+		"if_zyd",    "if_ath",      "if_bwi",      "if_bwn",
+		"if_ipw",    "if_iwi",      "if_iwm",      "if_iwn",
+		"if_malo",   "if_mwl",      "if_otus",     "if_ral",
+		"if_rsu",    "if_rtwn_usb", "if_rtwn_pci", "if_rum",
+		"if_run",    "if_uath",     "if_upgt",     "if_ural",
+		"if_urtw",   "if_wi"
 	}
 	local ether_kmods = {
-		"if_ae",   "if_age",      "if_alc",      "if_ale",
-		"if_aue",  "if_axe",      "if_bce",      "if_bfe",
-		"if_bge",  "if_bnxt",     "if_bxe",      "if_cas",
-		"if_cdce", "if_cue",      "if_cxgb",     "if_dc",
-		"if_de",   "if_ed",       "if_edsc",     "if_em",
-		"if_et",   "if_fwe",      "if_fxp",      "if_gem",
-		"if_hme",  "if_ntb",      "if_ipheth",   "if_ix",
-		"if_ixl",  "if_jme",      "if_kue",      "if_le",
-		"if_lge",  "if_mos",      "if_msk",      "if_mxge",
-		"if_my",   "if_nf10bmac", "if_nfe",      "if_nge",
-		"if_pcn",  "if_ptnet",    "if_qlnxe",    "if_qlxgb",
-		"if_qlxgbe", "if_qlxge",  "if_re",       "if_rl",
-		"if_rue",  "if_sf",       "if_sfxge",    "if_sge",
-		"if_sis",  "if_sk",       "if_smsc",     "if_sn",
-		"if_ste",  "if_stge",     "if_tap",      "if_ti",
-		"if_tl",   "if_tx",       "if_txp",      "if_udav",
-		"if_ure",  "if_urndis",   "if_vge",      "if_vr",
-		"if_vte",  "if_vtnet",    "if_wb",       "if_xe",
+		"if_ae",     "if_age",      "if_alc",      "if_ale",
+		"if_aue",    "if_axe",      "if_bce",      "if_bfe",
+		"if_bge",    "if_bnxt",     "if_bxe",      "if_cas",
+		"if_cdce",   "if_cue",      "if_cxgb",     "if_dc",
+		"if_de",     "if_ed",       "if_edsc",     "if_em",
+		"if_et",     "if_fwe",      "if_fxp",      "if_gem",
+		"if_hme",    "if_ntb",      "if_ipheth",   "if_ix",
+		"if_ixl",    "if_jme",      "if_kue",      "if_le",
+		"if_lge",    "if_mos",      "if_msk",      "if_mxge",
+		"if_my",     "if_nf10bmac", "if_nfe",      "if_nge",
+		"if_pcn",    "if_ptnet",    "if_qlnxe",    "if_qlxgb",
+		"if_qlxgbe", "if_qlxge",    "if_re",       "if_rl",
+		"if_rue",    "if_sf",       "if_sfxge",    "if_sge",
+		"if_sis",    "if_sk",       "if_smsc",     "if_sn",
+		"if_ste",    "if_stge",     "if_tap",      "if_ti",
+		"if_tl",     "if_tx",       "if_txp",      "if_udav",
+		"if_ure",    "if_urndis",   "if_vge",      "if_vr",
+		"if_vte",    "if_vtnet",    "if_wb",       "if_xe",
 		"if_xl"
 	}
 	for _, m in pairs(wlan_kmods) do
