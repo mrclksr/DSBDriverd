@@ -1229,6 +1229,9 @@ load_driver(devinfo_t *dev)
 		    dev->vendor, dev->device,
 		    dev->descr != NULL ? dev->descr : "");
 	}
+	/* We are done with this device */
+	if (cfgstate != NULL)
+		(void)cfg_call_function(cfgstate, "on_finished", dev, NULL);
 }
 
 static inline char *
