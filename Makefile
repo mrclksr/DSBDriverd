@@ -48,16 +48,23 @@ ${CFGFILE}: ${CFGFILE}.in
 ${MANFILE}: ${MANFILE}.tmpl
 	sed -e 's|@PATH_DB@|${DBDIR}/${DBFILE}|g' \
 	    -e 's|@PATH_LOG@|${LOGFILE}|g' \
+	    -e 's|@PATH_CFG@|${CFGDIR}/${CFGFILE}|g' \
 	< ${.ALLSRC} > ${MANFILE}
 
 install: ${INSTALL_TARGETS}
 	${BSD_INSTALL_PROGRAM} ${PROGRAM} ${DESTDIR}${BINDIR}
 	${BSD_INSTALL_SCRIPT} ${RCSCRIPT} ${DESTDIR}${RCDIR}
-	-@mkdir ${DESTDIR}${DBDIR}
-	-@mkdir ${DESTDIR}${CFGDIR}
+	if [ ! -d ${DESTDIR}${DBDIR} ]; then \
+		mkdir -p ${DESTDIR}${DBDIR}; \
+	fi
+	if [ -d ${DESTDIR}${CFGDIR} ]; then \
+		mkdir -p ${DESTDIR}${CFGDIR}; \
+	fi
 	${BSD_INSTALL_DATA} ${DBFILE} ${DESTDIR}${DBDIR}
 	${BSD_INSTALL_DATA} ${MANFILE} ${DESTDIR}${MANDIR}
-	${BSD_INSTALL_DATA} ${CFGFILE} ${DESTDIR}${CFGDIR}
+	if [ ! -f ${DESTDIR}${CFGDIR}/${CFGFILE} ]; then \
+		${BSD_INSTALL_DATA} ${CFGFILE} ${DESTDIR}${CFGDIR}; \
+	fi
 	${BSD_INSTALL_DATA} ${CFGMODULES} ${DESTDIR}${CFGDIR}
 
 readme: readme.mdoc
