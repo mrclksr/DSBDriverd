@@ -4,7 +4,7 @@ netif = require("netif")
 -- Configuration variables
 --
 -- This is a string list of kernel module names to exclude from loading
--- exclude = { "ichwd", "uhid" }
+-- exclude_kmods = { "ichwd", "uhid" }
 
 -- This is a string list of network device to be ignored by the network
 -- setup functions

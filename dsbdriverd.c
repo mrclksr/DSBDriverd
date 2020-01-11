@@ -810,7 +810,8 @@ open_cfg()
 	if (luaL_dofile(cfgstate, PATH_CFG_FILE) != 0)
 		die(lua_tostring(cfgstate, -1));
 	cfg_call_function(cfgstate, "init", NULL, NULL);
-	cfg.exclude = cfg_getstrarr(cfgstate, "exclude", &cfg.exclude_len);
+	cfg.exclude = cfg_getstrarr(cfgstate, "exclude_kmods",
+	    &cfg.exclude_len);
 	if (cfg.exclude != NULL) {
 		for (i = 0; exclude[i] != NULL; i++)
 			;
