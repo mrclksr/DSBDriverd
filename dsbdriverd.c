@@ -133,7 +133,6 @@ static bool	 match_protocol(const devinfo_t *, uint16_t);
 static bool	 parse_devd_event(char *);
 static bool	 find_kmod(const char *);
 static void	 lockpidfile(void);
-static void	 netstart(const char *);
 static void	 add_driver(devinfo_t *, const char *);
 static void	 add_iface(devinfo_t *, uint16_t, uint16_t, uint16_t);
 static void	 load_driver(devinfo_t *);
@@ -161,15 +160,14 @@ static devinfo_t *add_device(void);
 int
 main(int argc, char *argv[])
 {
-	int		ch, error, i, n, s, tries;
-	char		*ln, *p;
-	bool		cflag, fflag, lflag, uflag;
-	fd_set		rset;
-	uint16_t	vendor, device;
-	struct timeval	tv, *tp;
+	int	 ch, error, i, n, s;
+	char	 *ln, *p;
+	bool	 cflag, fflag, lflag;
+	fd_set	 rset;
+	uint16_t vendor, device;
 
-	cflag = fflag = dryrun = lflag = uflag = false;
-	while ((ch = getopt(argc, argv, "c:flnhux:")) != -1) {
+	cflag = fflag = dryrun = lflag = false;
+	while ((ch = getopt(argc, argv, "c:flnhx:")) != -1) {
 		switch (ch) {
 		case 'c':
 			cflag = true;
@@ -191,9 +189,6 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			dryrun = true;
-			break;
-		case 'u':
-			uflag = true;
 			break;
 		case 'x':
 			for (i = 0, p = optarg; i < MAX_EXCLUDES - 1 &&
@@ -255,30 +250,9 @@ main(int argc, char *argv[])
 
 	for (i = 0; i < ndevs; i++)
 		load_driver(&devlst[i]);
-	for (tries = 0;;) {
-		/* 
-		 * In case we loaded the driver of an ethernet device,
-		 * we wait two seconds to see if it appears. If that's
-		 * the case, we try to bring up the ethernet device
-		 * before we become a daemon. This delays the start of
-		 * services that depend on a network connection, until
-		 * we started dhclient on the device.
-		 */
-		if (tries == 2) {
-			/* Use blocking select() from now. */
-			tp = NULL;
-			if (!fflag) {
-				if (daemon(0, 1) == -1)
-					err(EXIT_FAILURE, "Failed to daemonize");
-				(void)pidfile_write(pfh);
-			}
-			tries++;
-		} else if (tries < 2) {
-			tries++;
-			tv.tv_sec = 1; tv.tv_usec = 0; tp = &tv;
-		}
+	for (;;) {
 		FD_ZERO(&rset); FD_SET(s, &rset);
-		while (select(s + 1, &rset, NULL, NULL, tp) == -1) {
+		while (select(s + 1, &rset, NULL, NULL, NULL) == -1) {
 			if (errno == EINTR)
 				continue;
 			else
@@ -292,12 +266,7 @@ main(int argc, char *argv[])
 				continue;
 			if (devdevent.type != DEVD_TYPE_ATTACH)
 				continue;
-			switch (devdevent.system) {
-			case DEVD_SYSTEM_IFNET:
-				if (uflag && !dryrun)
-					netstart(devdevent.subsystem);
-				break;
-			case DEVD_SYSTEM_USB:
+			if (devdevent.system == DEVD_SYSTEM_USB) {
 				n = get_usb_devs();
 				for (i = ndevs - n; i < ndevs; i++)
 					load_driver(&devlst[i]);
@@ -324,7 +293,7 @@ static void
 usage()
 {
 	(void)printf("Usage: %s [-h]\n" \
-	       "       %s [-l|-c vendor:device] | [-fnu][-x driver,...]\n",
+	       "       %s [-l|-c vendor:device] | [-fn][-x driver,...]\n",
 	       PROGRAM, PROGRAM);
 	exit(EXIT_FAILURE);
 }
@@ -552,23 +521,6 @@ parse_devd_event(char *str)
 			devdevent.cdev = q;
         }
 	return (true);
-}
-
-static void
-netstart(const char *ifdev)
-{
-	char cmd[512];
-
-	/* Bring up new ethernet devices, and start dhclient */
-	logprintx("Bringing up %s", ifdev);
-	(void)snprintf(cmd, sizeof(cmd) - 1, IFCONFIG_CMD, ifdev, ifdev);
-	switch (system(cmd)) {
-	case   0:
-		break;
-	case  -1:
-	case 127:
-		logprint("system(%s)", cmd);
-	}
 }
 
 static void

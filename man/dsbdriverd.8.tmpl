@@ -8,7 +8,7 @@
 .Nm
 .Op Fl l | Fl c Ar vendor:device
 |
-.Op Fl fnu
+.Op Fl fn
 .Op Fl x Ar driver,...
 .Sh DESCRIPTION
 .Nm
@@ -33,10 +33,6 @@ Run in foreground.
 List installed devices and their corresponding driver.
 .It Fl n
 Just show what would be done, but do not load any drivers.
-.It Fl u
-Start
-.Xr dhclient 8
-on Ethernet devices that appeared after loading the corresponding driver.
 .It Fl x
 Exclude every
 .Ar driver
