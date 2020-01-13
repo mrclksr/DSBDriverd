@@ -65,6 +65,7 @@ install: ${INSTALL_TARGETS}
 	if [ ! -f ${DESTDIR}${CFGDIR}/${CFGFILE} ]; then \
 		${BSD_INSTALL_DATA} ${CFGFILE} ${DESTDIR}${CFGDIR}; \
 	fi
+	${BSD_INSTALL_DATA} ${CFGFILE} ${DESTDIR}${CFGDIR}/${CFGFILE}.sample
 	${BSD_INSTALL_DATA} ${CFGMODULES} ${DESTDIR}${CFGDIR}
 
 readme: readme.mdoc
