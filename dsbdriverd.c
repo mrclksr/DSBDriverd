@@ -239,6 +239,9 @@ main(int argc, char *argv[])
 		/* For warn(), err(), etc. */
 		err_set_file(logfp);
 		logprintx("%s started", PROGRAM);
+		if (daemon(0, 1) == -1)
+			err(EXIT_FAILURE, "Failed to daemonize");
+		(void)pidfile_write(pfh);
 	}
 	if ((s = devd_connect()) == -1)
 		err(EXIT_FAILURE, "Couldn't connect to %s", PATH_DEVD_SOCKET);
