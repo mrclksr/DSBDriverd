@@ -253,6 +253,53 @@ function netif.in_rc_conf(ifname)
 	return false
 end
 
+-- Returns the inet (v4) address of the given interface from the dhclient
+-- lease file
+function netif.inet_from_lease(ifname)
+	local l, inet, _inet
+	local f, e, errno = io.open("/var/db/dhclient.leases." .. ifname)
+	if f == nil then
+		if errno == 2 then -- ENOENT
+			return nil
+		end
+		io.stderr:write(e)
+		return nil
+	end
+	inet = nil
+	-- Get IP address of the last lease record
+	for l in f:lines() do
+		_inet = string.match(l, "^%s*fixed.address%s*(.+);$")
+		if _inet ~= nil then
+			inet = _inet
+		end
+	end
+	f:close()
+	return inet
+end
+
+-- Get the inet v4 and v6 addresses of the given interface
+function netif.get_inet_addr(ifname)
+	local l, inet4, inet6
+	local p, e = io.popen("ifconfig " .. ifname)
+	if p == nil then
+		io.stderr:write(e)
+		return nil, nil
+	end
+	for l in p:lines() do
+		if inet4 == nil then
+			inet4 = string.match(l, "^%s+inet%s+(%g+)")
+		end
+		if inet6 == nil then
+			inet6 = string.match(l, "^%s+inet6%s+([%x:]+)")
+		end
+		if inet4 ~= nil and inet6 ~= nil then
+			break
+		end
+	end
+	p:close()
+	return inet4, inet6
+end
+
 -- Returns a list of wlan device objects configured via /etc/rc.conf
 function netif.wlans_from_rc_conf()
 	local i, l
