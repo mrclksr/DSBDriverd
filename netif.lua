@@ -404,6 +404,33 @@ function netif.wait_for_new_wlan(driver, timeout)
 	end
 end
 
+local function add_wlan_regdomain_args()
+	local country = netif.get_wlan_region()
+	if country == nil then
+		return
+	end
+	local args = "down country " .. country
+	if wlan_create_args ~= nil then
+		wlan_create_args = args .. " " .. wlan_create_args
+	else
+		wlan_create_args = args
+	end
+end
+
+local function add_wlan_to_rc_conf(wlan)
+	local cmd = string.format("sysrc wlans_%s=\"wlan%d\"",
+	    wlan.parent, wlan.child)
+	os.execute(cmd)
+	if wlan_create_args then
+		cmd = string.format("sysrc create_args_wlan%d=\"%s\"",
+		    wlan.child, wlan_create_args)
+		os.execute(cmd)
+	end
+	cmd = string.format("sysrc ifconfig_wlan%d=\"%s\"",
+	    wlan.child, wlan_ifconfig_args)
+	os.execute(cmd)
+end
+
 -- Creates and configures a new wlan child device (wlanX) for each wlan
 -- device object which doesn't have a child device yet.
 function netif.create_wlan_devs()
@@ -411,15 +438,7 @@ function netif.create_wlan_devs()
 	local wlans = netif.get_wlan_devs()
 
 	if wlan_set_country then
-		local country = netif.get_wlan_region()
-		if country then
-			local args = "down country " .. country
-			if wlan_create_args ~= nil then
-				wlan_create_args = args .. " " .. wlan_create_args
-			else
-				wlan_create_args = args
-			end
-		end
+		add_wlan_regdomain_args()
 	end
 	if wlan_ifconfig_args == nil then
 		wlan_ifconfig_args = "up scan WPA DHCP"
@@ -438,11 +457,9 @@ function netif.create_wlan_devs()
 	-- a child ("wlanX"), and wasn't configured via /etc/rc.conf with
 	-- 'wlans_parent="wlan<max_unit>"'
 	for _, w in pairs(wlans) do
-		if not netif.wlan_rc_configured(w) or w.child == nil then
-			-- If the parent device is not to exclude, we can create
-			-- the child device.
-			if ignore_netifs == nil or
-			   netif.find_netif(w.parent, ignore_netifs) == nil then
+		if ignore_netifs == nil or
+		   netif.find_netif(w.parent, ignore_netifs) == nil then
+			if not netif.wlan_rc_configured(w) or w.child == nil then
 				-- If w.child is nil, we create a new wlanX device
 				-- (X = max_unit + 1). Else, we are here because a wlan
 				-- device was created via /etc/rc.conf, but the wlanX device
@@ -451,21 +468,11 @@ function netif.create_wlan_devs()
 					max_unit = max_unit + 1
 					w.child = max_unit
 				end
-				local cmd = string.format("sysrc wlans_%s=\"wlan%d\"",
-				    w.parent, w.child)
-				os.execute(cmd)
-				if wlan_create_args then
-					cmd = string.format("sysrc create_args_wlan%d=\"%s\"",
-										w.child, wlan_create_args)
-					os.execute(cmd)
-				end
-				cmd = string.format("sysrc ifconfig_wlan%d=\"%s\"",
-									w.child, wlan_ifconfig_args)
-				os.execute(cmd)
+				add_wlan_to_rc_conf(w)
 				local child = "wlan" .. w.child
 				local status = netif.link_status(child)
 				-- Only restart the interface if is isn't already associated
-				if status ~= "associated" then
+				if status == nil or status ~= "associated" then
 					os.execute("service netif restart " .. child)
 				end
 			end
