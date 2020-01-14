@@ -521,7 +521,10 @@ function netif.setup_ether_devs()
 					local cmd = string.format("sysrc ifconfig_%s=\"DHCP\"", i)
 					os.execute(cmd)
 				end
-				os.execute("service netif restart " .. i)
+				local inet4, inet6 = netif.get_inet_addr(i)
+				if inet6 == nil and inet4 == nil then
+					os.execute("service netif restart " .. i)
+				end
 			end
 		end
 	end
