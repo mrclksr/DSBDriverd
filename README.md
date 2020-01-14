@@ -10,8 +10,15 @@ driver in a database using information provided by the hardware. The same
 applies to USB devices attached to the system later at runtime.
 
 # INSTALLATION
+## Dependencies
+*lang/lua52*
+
+## Getting the source code
 
 	# git clone https://github.com/mrclksr/DSBDriverd.git
+
+## Building and installation
+
 	# cd DSBDriverd && make install
 
 # USAGE
@@ -19,7 +26,7 @@ applies to USB devices attached to the system later at runtime.
 **dsbdriverd**
 \[**-l** | **-c** *vendor:device*]
 |
-\[**-fnu**]
+\[**-fn**]
 \[**-x** *driver,...*]
 
 # OPTIONS
@@ -44,12 +51,6 @@ applies to USB devices attached to the system later at runtime.
 
 > Just show what would be done, but do not load any drivers.
 
-**-u**
-
-> Start
-> dhclient(8)
-> on Ethernet devices that appeared after loading the corresponding driver.
-
 **-x**
 
 > Exclude every
@@ -66,16 +67,5 @@ at boot time, add the following line to
 	dsbdriverd_enable="YES"
 
 In addtion you can specify flags using the
-*dsbdriverd\_flags*
-variable. If you want
-**dsbdriverd**
-to automatically start
-dhclient(8)
-on your Ethernet devices for which it loaded the corresponding drivers,
-you can set
-
-	dsbdriverd_flags="-u"
-
-in
-*/etc/rc.conf*
+*dsbdriverd\_flags* variable.
 
