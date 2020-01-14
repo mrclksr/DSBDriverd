@@ -512,13 +512,16 @@ end
 function netif.setup_ether_devs()
 	local i
 	local iflist = netif.get_netifs()
-
+	if ether_ifconfig_args == nil then
+		ether_ifconfig_args = "DHCP"
+	end
 	for _, i in pairs(iflist) do
 		if ignore_netifs == nil or
 		  netif.find_netif(w.parent, ignore_netifs) == nil then
 			if not string.match(i, "wlan") then
 				if not netif.in_rc_conf(i) then
-					local cmd = string.format("sysrc ifconfig_%s=\"DHCP\"", i)
+					local cmd = string.format("sysrc ifconfig_%s=\"%s\"",
+					    i, ether_ifconfig_args)
 					os.execute(cmd)
 				end
 				local inet4, inet6 = netif.get_inet_addr(i)
