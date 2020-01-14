@@ -149,7 +149,6 @@ static void	 cfg_setint_tbl_field(lua_State *, const char *, int);
 static void	 cfg_setstr_tbl_field(lua_State *, const char *, const char *);
 static void	 cfg_add_interface_tbl(lua_State *, const iface_t *);
 static void	 cfg_dev_to_tbl(lua_State *, const devinfo_t *dev);
-static char	 *int2char(uint16_t);
 static char	 *read_devd_event(int, int *);
 static char	 *find_driver(const devinfo_t *);
 static char	 *devdescr(FILE *, const devinfo_t *);
@@ -1124,15 +1123,6 @@ find_kmod(const char *name)
 		}
 	}
 	return (false);
-}
-
-static char *
-int2char(uint16_t val)
-{
-	static char num[5];
-
-	(void)snprintf(num, sizeof(num), "%x", val);
-	return (num);
 }
 
 static void
