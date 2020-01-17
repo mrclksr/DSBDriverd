@@ -62,7 +62,7 @@
 
 enum DB_COLUMNS {
 	DB_VENDOR_COLUMN = 1, DB_DEVICE_COLUMN,
-	DB_SUBVENDOR_COLUMN, DB_SUBDEVICE_COLUMN
+	DB_SUBVENDOR_COLUMN,  DB_SUBDEVICE_COLUMN
 };
 
 #define PATH_PCI	     "/dev/pci"
@@ -163,7 +163,7 @@ static void	 cfg_add_interface_tbl(lua_State *, const iface_t *);
 static void	 cfg_dev_to_tbl(lua_State *, const devinfo_t *dev);
 static char	 *read_devd_event(int, int *);
 static char	 *find_driver(const devinfo_t *);
-static char	 *devdescr(FILE *, const devinfo_t *);
+static char	 *get_devdescr(FILE *, const devinfo_t *);
 static char	 *cfg_getstr(lua_State *, const char *);
 static char	 **cfg_getstrarr(lua_State *, const char *, size_t *);
 static devinfo_t *add_device(void);
@@ -378,8 +378,8 @@ show_drivers(uint16_t vendor, uint16_t device)
 	dev.vendor = vendor;
 	dev.device = device;
 
-	if ((info = devdescr(pcidb, &dev)) == NULL)
-		info = devdescr(usbdb, &dev);
+	if ((info = get_devdescr(pcidb, &dev)) == NULL)
+		info = get_devdescr(usbdb, &dev);
 	for (dp = &dev; (p = find_driver(dp)) != NULL; dp = NULL)
 		(void)printf("%s: %s\n", info != NULL ? info: "", p);
 }
@@ -886,7 +886,7 @@ get_pci_devs()
 			dip->revision  = conf[i].pc_revid;
 			dip->class     = conf[i].pc_class;
 			dip->subclass  = conf[i].pc_subclass;
-			dip->descr     = devdescr(pcidb, dip);
+			dip->descr     = get_devdescr(pcidb, dip);
 			if (dip->descr != NULL) {
 				if ((dip->descr = strdup(dip->descr)) == NULL)
 					die("strdup()");
@@ -947,7 +947,7 @@ get_usb_devs()
 			}
 			free(cfg);
 		}
-		dip->descr = devdescr(usbdb, dip);
+		dip->descr = get_devdescr(usbdb, dip);
 		if (dip->descr != NULL) {
 			if ((dip->descr = strdup(dip->descr)) == NULL)
 				die("strdup()");
@@ -1250,7 +1250,7 @@ nf(char *str)
 }
 
 static char *
-devdescr(FILE *iddb, const devinfo_t *dev)
+get_devdescr(FILE *iddb, const devinfo_t *dev)
 {
 	int	    depth, match, _match, val, sv, sd;
 	char	   *p, *q;
