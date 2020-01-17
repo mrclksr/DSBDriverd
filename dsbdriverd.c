@@ -133,7 +133,7 @@ static bool	 is_kmod_loaded(const char *);
 static bool	 is_new(uint16_t, uint16_t, uint16_t, uint16_t);
 static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
 static bool	 match_ifclass(const devinfo_t *, uint16_t);
-static bool	 match_protocol(const devinfo_t *, uint16_t);
+static bool	 match_ifprotocol(const devinfo_t *, uint16_t);
 static bool	 match_drivers_db_column(const devinfo_t *, char *, int);
 static bool	 match_device_column(const devinfo_t *, char *);
 static bool	 parse_devd_event(char *);
@@ -614,7 +614,7 @@ match_ifsubclass(const devinfo_t *d, uint16_t subclass)
 }
 
 static bool
-match_protocol(const devinfo_t *d, uint16_t protocol)
+match_ifprotocol(const devinfo_t *d, uint16_t protocol)
 {
 	int i;
 
@@ -1085,7 +1085,7 @@ match_device_column(const devinfo_t *dev, char *colstr)
 		    !match_ifsubclass(dev, strtol(&p[11], NULL, 16)))
 			return (false);
 		else if (strncmp(p, "protocol=", 9) == 0 &&
-		    !match_protocol(dev, strtol(&p[9], NULL, 16)))
+		    !match_ifprotocol(dev, strtol(&p[9], NULL, 16)))
 			return (false);
 	}
 	return (true);
