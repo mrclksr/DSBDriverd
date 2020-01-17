@@ -1,0 +1,12 @@
+-- Comments in Kyuafiles must start with two hyphens
+
+-- The syntax version must be defined to 2 at the
+-- beginning of all Kyuafiles. 
+syntax(2)
+
+-- The name of the test suite must be defined.
+test_suite('dsbdriverd')
+
+-- This specifies the test programs
+atf_test_program{name='dsbdriverd-test'}
+
