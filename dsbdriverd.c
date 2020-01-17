@@ -373,7 +373,7 @@ show_drivers(uint16_t vendor, uint16_t device)
 	const char	*p;
 	const devinfo_t	*dp;
 
-	(void)bzero(&dev, sizeof(dev));
+	bzero(&dev, sizeof(dev));
 	dev.vendor = vendor;
 	dev.device = device;
 
@@ -388,7 +388,7 @@ has_driver(uint16_t vendor, uint16_t device)
 {
 	devinfo_t dev;
 
-	(void)bzero(&dev, sizeof(dev));
+	bzero(&dev, sizeof(dev));
 	dev.vendor = vendor;
 	dev.device = device;
 
