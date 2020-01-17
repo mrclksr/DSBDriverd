@@ -129,12 +129,14 @@ static int	 cfg_getint(lua_State *, const char *);
 static int	 cfg_call_function(lua_State *L, const char *,
 		     const devinfo_t *, const char *);
 static bool	 has_driver(uint16_t, uint16_t);
+static bool	 is_kmod_loaded(const char *);
 static bool	 is_new(uint16_t, uint16_t, uint16_t, uint16_t);
 static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
 static bool	 match_ifclass(const devinfo_t *, uint16_t);
 static bool	 match_protocol(const devinfo_t *, uint16_t);
+static bool	 match_drivers_db_column(const devinfo_t *, char *, int);
+static bool	 match_device_column(const devinfo_t *, char *);
 static bool	 parse_devd_event(char *);
-static bool	 is_kmod_loaded(const char *);
 static void	 show_drivers(uint16_t, uint16_t);
 static void	 lockpidfile(void);
 static void	 add_driver(devinfo_t *, const char *);
@@ -963,7 +965,7 @@ static char *
 find_driver(const devinfo_t *d)
 {
 	int	    match, depth_prev, depth_cur;
-	bool	    nomatch, skip;
+	bool	    skip;
 	long	    len;
 	char	    ln[_POSIX2_LINE_MAX], *p, *lp;
 	static char *last = NULL;
@@ -1049,56 +1051,65 @@ find_driver(const devinfo_t *d)
 		lp = ln + strspn(ln, "\t ");
 		if (*lp == '\0')
 			continue;
-
 		depth_prev = depth_cur;
-		switch (depth_cur) {
-		case 1:
-			if (*lp == '*' || strtol(lp, NULL, 16) == d->vendor)
-				match++;
-			break;
-		case 2:
-			if (*lp != '*' && strtol(lp, NULL, 16) != d->device)
-				continue;
-			nomatch = false;
-			while ((p = strsep(&lp, "\t ")) != NULL) {
-				if (strncmp(p, "revision=", 9) == 0 &&
-				    strtol(&p[9], NULL, 16) != d->revision)
-					nomatch = true;
-				else if (strncmp(p, "class=", 6) == 0 &&
-				    strtol(&p[6], NULL, 16) != d->class)
-					nomatch = true;
-				else if (strncmp(p, "subclass=", 9) == 0 &&
-				    strtol(&p[6], NULL, 16) != d->subclass)
-					nomatch = true;
-				else if (strncmp(p, "ifclass=", 8) == 0 &&
-				    !match_ifclass(d, strtol(&p[8], NULL, 16)))
-					nomatch = true;
-				else if (strncmp(p, "ifsubclass=", 11) == 0 &&
-				    !match_ifsubclass(d,
-				      strtol(&p[11], NULL, 16)))
-					nomatch = true;
-				else if (strncmp(p, "protocol=", 9) == 0 &&
-				    !match_protocol(d,
-				      strtol(&p[9], NULL, 16)))
-					nomatch = true;
-			}
-			if (!nomatch)
-				match++; 
-			break;
-		case 3:
-			if (*lp == '*' || strtol(lp, NULL, 16) == d->subvendor)
-				match++;
-			break;
-		case 4:
-			if (*lp == '*' || strtol(lp, NULL, 16) == d->subdevice)
-				match++;
-			break;
-		}
+		if (match_drivers_db_column(d, lp, depth_cur))
+			match++;
 	}
 	if (match > 0 && match >= depth_cur)
 		return (strtok_r(driver, "\t ", &last));
 	/* No more drivers found. */
 	return (NULL);
+}
+
+static bool
+match_device_column(const devinfo_t *dev, char *colstr)
+{
+	char *p;
+
+	if (*colstr != '*' && strtol(colstr, NULL, 16) != dev->device)
+		return (false);
+	while ((p = strsep(&colstr, "\t ")) != NULL) {
+		if (strncmp(p, "revision=", 9) == 0 &&
+		    strtol(&p[9], NULL, 16) != dev->revision)
+			return (false);
+		else if (strncmp(p, "class=", 6) == 0 &&
+		    strtol(&p[6], NULL, 16) != dev->class)
+			return (false);
+		else if (strncmp(p, "subclass=", 9) == 0 &&
+		    strtol(&p[6], NULL, 16) != dev->subclass)
+			return (false);
+		else if (strncmp(p, "ifclass=", 8) == 0 &&
+		    !match_ifclass(dev, strtol(&p[8], NULL, 16)))
+			return (false);
+		else if (strncmp(p, "ifsubclass=", 11) == 0 &&
+		    !match_ifsubclass(dev, strtol(&p[11], NULL, 16)))
+			return (false);
+		else if (strncmp(p, "protocol=", 9) == 0 &&
+		    !match_protocol(dev, strtol(&p[9], NULL, 16)))
+			return (false);
+	}
+	return (true);
+}
+
+static bool
+match_drivers_db_column(const devinfo_t *dev, char *colstr, int colnumber)
+{
+	if (colnumber == 1) {
+		if (*colstr == '*' || strtol(colstr, NULL, 16) == dev->vendor)
+			return (true);
+	} else if (colnumber == 2) {
+		if (match_device_column(dev, colstr))
+			return (true);
+	} else if (colnumber == 3) {
+		if (*colstr == '*' ||
+		    strtol(colstr, NULL, 16) == dev->subvendor)
+			return (true);
+	} else if (colnumber == 4) {
+		if (*colstr == '*' ||
+		    strtol(colstr, NULL, 16) == dev->subdevice)
+			return (true);
+	}
+	return (false);
 }
 
 static bool
