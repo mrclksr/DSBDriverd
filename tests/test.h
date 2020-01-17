@@ -110,9 +110,33 @@ ATF_TC_BODY(find_driver, tc)
 	ATF_CHECK_STREQ("if_ipheth", testdriver4);
 }
 
+ATF_TC(match_kmod_name);
+ATF_TC_HEAD(match_kmod_name, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test match_kmod_name()");
+}
+
+ATF_TC_BODY(match_kmod_name, tc)
+{
+	/* Should match */
+	ATF_CHECK(match_kmod_name("uhub/uaudio", "uaudio"));
+	ATF_CHECK(match_kmod_name("uhub/uaudio.ko", "uaudio"));
+	ATF_CHECK(match_kmod_name("uaudio.ko", "uaudio"));
+	ATF_CHECK(match_kmod_name("snd_emu10kx_pcm", "snd_emu10kx_pcm"));
+
+	/* Should not match */
+	ATF_CHECK(!match_kmod_name("alc/miibus", "alc"));
+	ATF_CHECK(!match_kmod_name("uhub/uaudio", "uaudi"));
+	ATF_CHECK(!match_kmod_name("", "foo"));
+	ATF_CHECK(!match_kmod_name("foo", ""));
+	ATF_CHECK(!match_kmod_name("foo", "fo"));
+
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, parse_devd_event);
 	ATF_TP_ADD_TC(tp, find_driver);
+	ATF_TP_ADD_TC(tp, match_kmod_name);
 	return atf_no_error();
 }
