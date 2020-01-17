@@ -954,7 +954,7 @@ get_usb_devs()
 static char *
 find_driver(const devinfo_t *d)
 {
-	int	    match, depth_prev, depth_cur;
+	int	    matching_columns, prev_column, curr_column;
 	bool	    skip;
 	long	    len;
 	char	    ln[_POSIX2_LINE_MAX], *p, *lp;
@@ -979,7 +979,7 @@ find_driver(const devinfo_t *d)
 			err(EXIT_FAILURE, "fseek()");
 		curdev = d;
 	}
-	match = depth_prev = 0;
+	matching_columns = prev_column = 0;
 	while (fgets(ln, sizeof(ln), db) != NULL) {
 		len = strlen(ln);
 		/* Remove '\r', '\n', and '#' */
@@ -993,27 +993,28 @@ find_driver(const devinfo_t *d)
 		 * Count depth (columns/# of tabs). Ignore space characters
 		 * inbetween.
 		 */
-		for (depth_cur = 0, lp = ln; *lp != '\0'; lp++) {
+		for (curr_column = 0, lp = ln; *lp != '\0'; lp++) {
 			if (*lp == '\t')
-				depth_cur++;
+				curr_column++;
 			else if (*lp != ' ')
 				break;
 		}
 		/* Skip whitespace-only lines */
 		if (*lp == '\0')
 			continue;
-		if (skip && depth_cur > 0)
+		if (skip && curr_column > 0)
 			continue;
 		else if (skip) {
 			/*
 			 * We skipped all lines so far, and reached the
-			 * the next driver record. Reset "match" and depth_prev
+			 * the next driver record. Reset "matching_columns"
+			 * and prev_column
 			 */
 			skip = false;
-			depth_prev = match = 0;
+			prev_column = matching_columns = 0;
 		}
-		if (depth_cur < depth_prev) {
-			if (depth_cur == 0) {
+		if (curr_column < prev_column) {
+			if (curr_column == 0) {
 				/*
 				 * We are at the beginning of a new driver
 				 * record. Get the driver name in the next
@@ -1021,31 +1022,31 @@ find_driver(const devinfo_t *d)
 				 */
 				(void)fseek(db, -len, SEEK_CUR);
 			}
-			if (depth_prev == match)
+			if (prev_column == matching_columns)
 				return (strtok_r(driver, "\t ", &last));
-			if (depth_cur <= match) {
+			if (curr_column <= matching_columns) {
 				skip = true;
 				continue;
 			}
-		} else if (depth_cur == 0) {
+		} else if (curr_column == 0) {
 			/*
 			 * At the beginning of a new record. Get the driver
 			 * name.
 			 */
-			match = depth_prev = 0; last = NULL;
+			matching_columns = prev_column = 0; last = NULL;
 			(void)strncpy(driver, ln, sizeof(driver));
 			continue;
-		} else if (depth_cur - match >= 2)
+		} else if (curr_column - matching_columns >= 2)
 			continue;
 		/* Skip leading tabs and spaces */
 		lp = ln + strspn(ln, "\t ");
 		if (*lp == '\0')
 			continue;
-		depth_prev = depth_cur;
-		if (match_drivers_db_column(d, lp, depth_cur))
-			match++;
+		prev_column = curr_column;
+		if (match_drivers_db_column(d, lp, curr_column))
+			matching_columns++;
 	}
-	if (match > 0 && match >= depth_cur)
+	if (matching_columns > 0 && matching_columns >= curr_column)
 		return (strtok_r(driver, "\t ", &last));
 	/* No more drivers found. */
 	return (NULL);
