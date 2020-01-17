@@ -133,10 +133,36 @@ ATF_TC_BODY(match_kmod_name, tc)
 
 }
 
+ATF_TC(get_devdescr);
+ATF_TC_HEAD(get_devdescr, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test get_devdescr()");
+}
+
+ATF_TC_BODY(get_devdescr, tc)
+{
+	char	  *descr;
+	devinfo_t testdev_pci;
+
+	open_dbs();
+
+	testdev_pci.vendor = 0x0e11;
+	testdev_pci.device = 0xb178;
+	testdev_pci.subvendor = 0x0e11;
+	testdev_pci.subdevice = 0x4082;
+
+	descr = get_devdescr(pcidb, &testdev_pci);
+	ATF_REQUIRE(descr != NULL);
+	ATF_CHECK_STREQ_MSG(descr,
+	    "Compaq Computer Corporation Smart Array 5i/532 Smart Array 532",
+	    "descr == \"%s\"", descr);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, parse_devd_event);
 	ATF_TP_ADD_TC(tp, find_driver);
 	ATF_TP_ADD_TC(tp, match_kmod_name);
+	ATF_TP_ADD_TC(tp, get_devdescr);
 	return atf_no_error();
 }
