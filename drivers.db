@@ -27,7 +27,7 @@
 #
 # This file consists of records of the following form:
 #
-# <driver>|<!command> [<driver>|<!command>] ...
+# <driver> [<driver> ...]
 #	<vendor>				<-- One tab
 #		<device> [<extra info>]		<-- Two tabs
 #			<subvendor>		<-- Three tabs
@@ -35,23 +35,8 @@
 #
 # <vendor>, <device>, <subvendor>, and <subdevice> are hexadecimal numbers.
 # The wildcard '*' can be used to match any vendor, device, subvendor, or
-# subdevice.
-#
-# If an item from a record's driver list starts with a '!', it is treated as a
-# command to execute. The drivers/commands are loaded/executed in the order as
-# they appear in the list. The following environment variables are made avail-
-# able to the command:
-#
-# DSBDRIVERD_VENDOR, DSBDRIVERD_DEVICE, DSBDRIVERD_SUBVENDOR,
-# DSBDRIVERD_SUBDEVICE, DSBDRIVERD_DEVCLASS, DSBDRIVERD_INTERFACES
-# Where all values are hexadecimal numbers.
-#
-# DSBDRIVERD_DESCR ::= <string>
-# DSBDRIVERD_BUS ::= "PCI"|"USB"
-#
-# DSBDRIVERD_IFCLASS%d, DSBDRIVERD_IFSUBCLASS%d, DSBDRIVERD_IFPROTOCOL%d
-# Where %d is replaced by the interface number ([0, DSBDRIVERD_INTERFACES - 1]),
-# and all values are hexadecimal numbers.
+# subdevice. The drivers are loaded/executed in the order as they appear in
+# the list.
 #
 # EXTRA INFO
 #
