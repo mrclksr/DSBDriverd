@@ -1152,8 +1152,6 @@ static bool
 is_kmod_loaded(const char *name)
 {
 	int		   id, _id;
-	size_t		   len;
-	const char	   *q, *p;
 	struct module_stat mstat;
 
 	if (kldfind(name) == -1) {
