@@ -50,6 +50,9 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+#ifdef TEST
+# include <atf-c.h>
+#endif
 
 #define MAX_PCI_DEVS	     32
 #define MAX_EXCLUDES	     256
@@ -156,6 +159,7 @@ static char	 *cfg_getstr(lua_State *, const char *);
 static char	 **cfg_getstrarr(lua_State *, const char *, size_t *);
 static devinfo_t *add_device(void);
 
+#ifndef TEST
 int
 main(int argc, char *argv[])
 {
@@ -290,6 +294,9 @@ main(int argc, char *argv[])
 	/* NOTREACHED */
 	return (EXIT_SUCCESS);
 }
+#else
+# include "test.h"
+#endif
 
 static void
 usage()
