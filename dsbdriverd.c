@@ -134,7 +134,7 @@ static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
 static bool	 match_ifclass(const devinfo_t *, uint16_t);
 static bool	 match_protocol(const devinfo_t *, uint16_t);
 static bool	 parse_devd_event(char *);
-static bool	 find_kmod(const char *);
+static bool	 is_kmod_loaded(const char *);
 static void	 lockpidfile(void);
 static void	 add_driver(devinfo_t *, const char *);
 static void	 add_iface(devinfo_t *, uint16_t, uint16_t, uint16_t);
@@ -1088,7 +1088,7 @@ find_driver(const devinfo_t *d)
 }
 
 static bool
-find_kmod(const char *name)
+is_kmod_loaded(const char *name)
 {
 	int		   id, _id;
 	size_t		   len;
@@ -1161,7 +1161,7 @@ load_driver(devinfo_t *dev)
 			}
 			logprintx("affirm returned 1");
 		}
-		if (!find_kmod(driver)) {
+		if (!is_kmod_loaded(driver)) {
 			logprintx("vendor=%04x product=%04x %s: " \
 			    "Loading %s", dev->vendor, dev->device,
 			    dev->descr != NULL ? dev->descr : "", driver);
