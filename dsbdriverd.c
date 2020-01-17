@@ -60,6 +60,11 @@
 #define SOCK_ERR_IO_ERROR    2
 #define SOCK_ERR_CONN_CLOSED 1
 
+enum DB_COLUMNS {
+	DB_VENDOR_COLUMN = 1, DB_DEVICE_COLUMN,
+	DB_SUBVENDOR_COLUMN, DB_SUBDEVICE_COLUMN
+};
+
 #define PATH_PCI	     "/dev/pci"
 #define PATH_DEVD_SOCKET     "/var/run/devd.seqpacket.pipe"
 #define IFCONFIG_CMD	     "ifconfig_%s=\"DHCP up\" /etc/rc.d/dhclient " \
@@ -1094,17 +1099,17 @@ match_device_column(const devinfo_t *dev, char *colstr)
 static bool
 match_drivers_db_column(const devinfo_t *dev, char *colstr, int colnumber)
 {
-	if (colnumber == 1) {
+	if (colnumber == DB_VENDOR_COLUMN) {
 		if (*colstr == '*' || strtol(colstr, NULL, 16) == dev->vendor)
 			return (true);
-	} else if (colnumber == 2) {
+	} else if (colnumber == DB_DEVICE_COLUMN) {
 		if (match_device_column(dev, colstr))
 			return (true);
-	} else if (colnumber == 3) {
+	} else if (colnumber == DB_SUBVENDOR_COLUMN) {
 		if (*colstr == '*' ||
 		    strtol(colstr, NULL, 16) == dev->subvendor)
 			return (true);
-	} else if (colnumber == 4) {
+	} else if (colnumber == DB_SUBDEVICE_COLUMN) {
 		if (*colstr == '*' ||
 		    strtol(colstr, NULL, 16) == dev->subdevice)
 			return (true);
