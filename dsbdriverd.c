@@ -952,7 +952,7 @@ get_usb_devs()
  * device.
  */
 static char *
-find_driver(const devinfo_t *d)
+find_driver(const devinfo_t *dev)
 {
 	int	    matching_columns, prev_column, curr_column;
 	bool	    skip;
@@ -963,9 +963,9 @@ find_driver(const devinfo_t *d)
 	static const devinfo_t *curdev = NULL;
 
 	skip = false;
-	if (d == NULL) {
+	if (dev == NULL) {
 		/* Try to find more drivers for previously defined dev. */
-		d = curdev;
+		dev = curdev;
 		if (last != NULL) {
 			p = strtok_r(NULL, "\t ", &last);
 			if (p != NULL)
@@ -977,7 +977,7 @@ find_driver(const devinfo_t *d)
 	} else {
 		if (fseek(db, 0, SEEK_SET) == -1)
 			err(EXIT_FAILURE, "fseek()");
-		curdev = d;
+		curdev = dev;
 	}
 	matching_columns = prev_column = 0;
 	while (fgets(ln, sizeof(ln), db) != NULL) {
@@ -1043,7 +1043,7 @@ find_driver(const devinfo_t *d)
 		if (*lp == '\0')
 			continue;
 		prev_column = curr_column;
-		if (match_drivers_db_column(d, lp, curr_column))
+		if (match_drivers_db_column(dev, lp, curr_column))
 			matching_columns++;
 	}
 	if (matching_columns > 0 && matching_columns >= curr_column)
