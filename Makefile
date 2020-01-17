@@ -1,6 +1,4 @@
 PROGRAM	       = dsbdriverd
-VERSION	       = 0.1.3
-YEAR	       = 2016
 DBFILE	       = drivers.db
 RCSCRIPT       = rc.d/${PROGRAM}
 MANFILE	       = man/${PROGRAM}.8
