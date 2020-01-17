@@ -155,8 +155,6 @@ static void	 open_cfg(void);
 static void	 usage(void);
 static void	 print_pci_devinfo(const devinfo_t *);
 static void	 print_usb_devinfo(const devinfo_t *);
-static void	 cfg_setstr(lua_State *, const char *, const char *);
-static void	 cfg_setint(lua_State *, const char *, int);
 static void	 cfg_setint_tbl_field(lua_State *, const char *, int);
 static void	 cfg_setstr_tbl_field(lua_State *, const char *, const char *);
 static void	 cfg_add_interface_tbl(lua_State *, const iface_t *);
@@ -708,20 +706,6 @@ cfg_getstrarr(lua_State *L, const char *var, size_t *len)
 		lua_pop(L, 1);
 	}
 	return (arr);
-}
-
-static void
-cfg_setstr(lua_State *L, const char *var, const char *str)
-{
-	lua_pushstring(L, str);
-	lua_setglobal(L, var);
-}
-
-static void
-cfg_setint(lua_State *L, const char *var, int val)
-{
-	lua_pushnumber(L, val);
-	lua_setglobal(L, var);
 }
 
 static void
