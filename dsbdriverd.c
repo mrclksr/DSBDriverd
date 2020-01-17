@@ -141,6 +141,7 @@ static bool	 match_ifclass(const devinfo_t *, uint16_t);
 static bool	 match_ifprotocol(const devinfo_t *, uint16_t);
 static bool	 match_drivers_db_column(const devinfo_t *, char *, int);
 static bool	 match_device_column(const devinfo_t *, char *);
+static bool	 match_kmod_name(const char *, const char *);
 static bool	 parse_devd_event(char *);
 static void	 show_drivers(uint16_t, uint16_t);
 static void	 lockpidfile(void);
@@ -1118,6 +1119,36 @@ match_drivers_db_column(const devinfo_t *dev, char *colstr, int colnumber)
 }
 
 static bool
+match_kmod_name(const char *kmodfile, const char *name)
+{
+	size_t	   len;
+	const char *p, *q;
+
+	/* Ignore the bus part */
+	if ((p = strchr(kmodfile, '/')) == NULL)
+		p = kmodfile;
+	else
+		p++;
+	/* Ignore .ko suffix */
+	for (q = p; *q != '\0'; q++) {
+		if (*q == '.' && strcmp(q, ".ko") == 0)
+			break;
+	}
+	len = q - p;
+	if (len == strlen(name) && strncmp(name, p, len) == 0)
+		return (true);
+	/*
+	 * Network drivers compiled into the kernel do not
+	 * have the if_* prefix.
+	 */
+	if (strncmp(name, "if_", 3) == 0) {
+		if (len == strlen(name) - 3 && strncmp(name + 3, p, len) == 0)
+			return (true);
+	}
+	return (false);
+}
+
+static bool
 is_kmod_loaded(const char *name)
 {
 	int		   id, _id;
@@ -1135,28 +1166,8 @@ is_kmod_loaded(const char *name)
 			mstat.version = sizeof(struct module_stat);
 			if (modstat(_id, &mstat) == -1)
 				continue;
-			/* Ignore the bus part */
-			if ((p = strchr(mstat.name, '/')) == NULL)
-				p = mstat.name;
-			else
-				p++;
-			/* Ignore .ko suffix */
-			for (q = p; *q != '\0'; q++) {
-				if (*q == '.' && strcmp(q, ".ko") == 0)
-					break;
-			}
-			len = q - p;
-			if (len == strlen(name) && strncmp(name, p, len) == 0)
+			if (match_kmod_name(mstat.name, name))
 				return (true);
-			/*
-			 * Network drivers compiled into the kernel do not
-			 * have the if_* prefix.
-			 */
-			if (strncmp(name, "if_", 3) == 0) {
-				if (len == strlen(name) - 3 &&
-				    strncmp(name + 3, p, len) == 0)
-					return (true);
-			}
 		}
 	}
 	return (false);
