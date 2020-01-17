@@ -125,16 +125,17 @@ static int	 uconnect(const char *);
 static int	 devd_connect(void);
 static int	 get_usb_devs(void);
 static int	 get_pci_devs(void);
-static int	 check(uint16_t, uint16_t);
 static int	 cfg_getint(lua_State *, const char *);
 static int	 cfg_call_function(lua_State *L, const char *,
 		     const devinfo_t *, const char *);
+static bool	 has_driver(uint16_t, uint16_t);
 static bool	 is_new(uint16_t, uint16_t, uint16_t, uint16_t);
 static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
 static bool	 match_ifclass(const devinfo_t *, uint16_t);
 static bool	 match_protocol(const devinfo_t *, uint16_t);
 static bool	 parse_devd_event(char *);
 static bool	 is_kmod_loaded(const char *);
+static void	 show_drivers(uint16_t, uint16_t);
 static void	 lockpidfile(void);
 static void	 add_driver(devinfo_t *, const char *);
 static void	 add_iface(devinfo_t *, uint16_t, uint16_t, uint16_t);
@@ -215,8 +216,13 @@ main(int argc, char *argv[])
 		(void)get_pci_devs();
 		(void)get_usb_devs();
 	}
-	if (cflag)
-		return (check(vendor, device));
+	if (cflag) {
+		if (has_driver(vendor, device)) {
+			show_drivers(vendor, device);
+			return (EXIT_SUCCESS);
+		}
+		return (EXIT_FAILURE);
+	}
 	if (lflag) {
 		for (i = 0; i < ndevs; i++) {
 			if (devlst[i].bus == BUS_TYPE_PCI)
@@ -352,26 +358,34 @@ print_usb_devinfo(const devinfo_t *dev)
 	}
 }
 
-static int
-check(uint16_t vendor, uint16_t device)
+static void
+show_drivers(uint16_t vendor, uint16_t device)
 {
-	int		n;
 	char		*info;
 	devinfo_t	dev;
 	const char	*p;
 	const devinfo_t	*dp;
 
-	(void)memset(&dev, 0, sizeof(dev));
+	(void)bzero(&dev, sizeof(dev));
 	dev.vendor = vendor;
 	dev.device = device;
 
 	if ((info = devdescr(pcidb, &dev)) == NULL)
 		info = devdescr(usbdb, &dev);
-	for (n = 0, dp = &dev; (p = find_driver(dp)) != NULL; dp = NULL, n++)
+	for (dp = &dev; (p = find_driver(dp)) != NULL; dp = NULL)
 		(void)printf("%s: %s\n", info != NULL ? info: "", p);
-	if (n > 0)
-		return (0);
-	return (1);
+}
+
+static bool
+has_driver(uint16_t vendor, uint16_t device)
+{
+	devinfo_t dev;
+
+	(void)bzero(&dev, sizeof(dev));
+	dev.vendor = vendor;
+	dev.device = device;
+
+	return (find_driver(&dev) != NULL ? true : false);
 }
 
 static void
