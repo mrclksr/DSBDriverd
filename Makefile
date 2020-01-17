@@ -75,7 +75,8 @@ readmemd: readme.mdoc
 	mandoc -mdoc -Tmarkdown readme.mdoc | sed '1,1d; $$,$$d' > README.md
 
 tests/${PROGRAM}-test: ${PROGRAM}.c tests/test.h
-	${CC} -o tests/${PROGRAM}-test ${PROGRAM_FLAGS} -Itests -DTEST=1 \
+	${CC} -o tests/${PROGRAM}-test ${PROGRAM_FLAGS} \
+		-Wno-unused-function -Itests -DTEST=1 \
 		${PROGRAM}.c ${PROGRAM_LIBS} -latf-c
 
 test: tests/${PROGRAM}-test
