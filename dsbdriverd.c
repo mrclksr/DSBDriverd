@@ -133,6 +133,7 @@ static int	 get_pci_devs(void);
 static int	 cfg_getint(lua_State *, const char *);
 static int	 cfg_call_function(lua_State *L, const char *,
 		     const devinfo_t *, const char *);
+static int	 parse_devd_event(char *);
 static bool	 has_driver(uint16_t, uint16_t);
 static bool	 is_kmod_loaded(const char *);
 static bool	 is_new(uint16_t, uint16_t, uint16_t, uint16_t);
@@ -142,7 +143,6 @@ static bool	 match_ifprotocol(const devinfo_t *, uint16_t);
 static bool	 match_drivers_db_column(const devinfo_t *, char *, int);
 static bool	 match_device_column(const devinfo_t *, char *);
 static bool	 match_kmod_name(const char *, const char *);
-static bool	 parse_devd_event(char *);
 static void	 show_drivers(uint16_t, uint16_t);
 static void	 lockpidfile(void);
 static void	 add_driver(devinfo_t *, const char *);
@@ -282,7 +282,7 @@ main(int argc, char *argv[])
 		if (!FD_ISSET(s, &rset))
 			continue;
 		while ((ln = read_devd_event(s, &error)) != NULL) {
-			if (!parse_devd_event(ln))
+			if (parse_devd_event(ln) == -1)
 				continue;
 			if (devdevent.type != DEVD_TYPE_ATTACH)
 				continue;
@@ -522,14 +522,14 @@ read_devd_event(int s, int *error)
 	return (NULL);
 }
 
-static bool
+static int
 parse_devd_event(char *str)
 {
 	char *p, *q;
 
 	devdevent.cdev = devdevent.subsystem = "";
 	if (str[0] != '!')
-		return (false);
+		return (-1);
 	for (p = str + 1; (p = strtok(p, " \n")) != NULL; p = NULL) {
 		if ((q = strchr(p, '=')) == NULL)
 			continue;
@@ -551,7 +551,7 @@ parse_devd_event(char *str)
 		} else if (strcmp(p, "cdev") == 0)
 			devdevent.cdev = q;
         }
-	return (true);
+	return (0);
 }
 
 static void
