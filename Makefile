@@ -76,9 +76,17 @@ readme: readme.mdoc
 readmemd: readme.mdoc
 	mandoc -mdoc -Tmarkdown readme.mdoc | sed '1,1d; $$,$$d' > README.md
 
+test: ${PROGRAM}.c tests/test.h
+	${CC} -o test ${PROGRAM_FLAGS} -Itests -DTEST=1 ${PROGRAM}.c \
+		${PROGRAM_LIBS} -latf-c
+	kyua test
+
+run-test: test
+	kyua test
+
 clean:
 	-rm -f ${PROGRAM}
 	-rm -f ${RCSCRIPT}
 	-rm -f ${CFGFILE}
 	-rm -f ${MANFILE}
-
+	-rm -f test
