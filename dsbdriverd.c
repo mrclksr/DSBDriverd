@@ -61,8 +61,16 @@
 #define SOCK_ERR_CONN_CLOSED 1
 
 enum DB_COLUMNS {
-	DB_VENDOR_COLUMN = 1, DB_DEVICE_COLUMN,
-	DB_SUBVENDOR_COLUMN,  DB_SUBDEVICE_COLUMN
+	DB_VENDOR_COLUMN = 1,
+	DB_DEVICE_COLUMN,
+	DB_SUBVENDOR_COLUMN,
+	DB_SUBDEVICE_COLUMN
+};
+
+enum DESCR_DB_COLUMS {
+	DESCR_DB_VENDOR_COLUMN,
+	DESCR_DB_DEVICE_COLUMN,
+	DESCR_DB_SUB_COLUMN
 };
 
 #define PATH_PCI	     "/dev/pci"
@@ -1212,12 +1220,12 @@ load_driver(devinfo_t *dev)
 }
 
 static inline char *
-nf(char *str)
+get_next_word_start(char *str)
 {
 	static char *next = NULL;
 
 	if (str == NULL) {
-		/* Get start of next field. */
+		/* Get start of next word. */
 		if ((str = next) == NULL)
 			return (NULL);
 	}
@@ -1232,56 +1240,67 @@ nf(char *str)
 	return (str);
 }
 
+static bool
+match_devdescr_column(const devinfo_t *dev, char *line, int column)
+{
+	int  val1, val2;
+	char *id;
+
+	(void)strtok(line, "#\n");
+	if ((id = get_next_word_start(line)) == NULL)
+		return (false);
+	val1 = strtol(id, NULL, 16);
+	if (column == DESCR_DB_VENDOR_COLUMN) {
+		if (val1 == dev->vendor)
+			return (true);
+	} else if (column == DESCR_DB_DEVICE_COLUMN) {
+		if (val1 == dev->device)
+			return (true);
+	} else if (column == DESCR_DB_SUB_COLUMN) {
+		if ((id = get_next_word_start(NULL)) == NULL)
+			return (false);
+		val2 = strtol(id, NULL, 16);
+		if (val1 == dev->subvendor && val2 == dev->subdevice)
+			return (true);
+	}
+	return (false);
+}
+
 static char *
 get_devdescr(FILE *iddb, const devinfo_t *dev)
 {
-	int	    depth, match, _match, val, sv, sd;
-	char	   *p, *q;
-	static char info[_POSIX2_LINE_MAX], ln[_POSIX2_LINE_MAX];
+	int	    column, matching_columns;
+	char	    *p, *descr;
+	static char infostr[_POSIX2_LINE_MAX], line[_POSIX2_LINE_MAX];
 
 	if (iddb == NULL)
 		return (NULL);
-	depth = match = 0; info[0] = '\0';
+	column = matching_columns = 0; infostr[0] = '\0';
 
 	if (fseek(iddb, 0, SEEK_SET) == -1) {
 		logprint("fseek()");
 		return (NULL);
 	}
-	while (fgets(ln, sizeof(ln) - 1, iddb) != NULL) {
-		if ((p = nf(ln)) == NULL || *p == '#' || *p == '\n')
+	while (fgets(line, sizeof(line) - 1, iddb) != NULL) {
+		if ((p = get_next_word_start(line)) == NULL ||
+		    *p == '#' || *p == '\n')
 			continue;
-		for (depth = 0; ln[depth] == '\t'; depth++)
+		for (column = 0; line[column] == '\t'; column++)
 			;
-		if (depth > match)
+		if (column > matching_columns)
 			continue;
-		_match = match;
-		if (depth < match)
-			return (info);
-		(void)strtok(ln, "#\n");
-		if ((p = nf(ln)) == NULL || (q = nf(NULL)) == NULL)
-			continue;
-		if (depth < 2) {
-			val = strtol(p, NULL, 16);
-			if (depth == 0) {
-				if (val == dev->vendor)
-					match++;
-			} else if (val == dev->device)
-				match++;
-		} else if (depth == 2) {
-			sv = strtol(p, NULL, 16);
-			sd = strtol(q, NULL, 16);
-			if ((q = nf(NULL)) == NULL)
+		if (column < matching_columns)
+			return (infostr);
+		if (match_devdescr_column(dev, line, column)) {
+			if ((descr = get_next_word_start(NULL)) == NULL)
 				continue;
-			if (sv == dev->subvendor && sd == dev->subdevice)
-				match++;
+			if (column > 0)
+				(void)strlcat(infostr, " ", sizeof(infostr));
+			(void)strlcat(infostr, descr, sizeof(infostr));
+			matching_columns++;
 		}
-		if (match == _match || match < depth)
-			continue;
-		if (depth > 0)
-			(void)strlcat(info, " ", sizeof(info));
-		(void)strlcat(info, q, sizeof(info));
 	}
-	if (depth < match)
-		return (info);
+	if (column < matching_columns)
+		return (infostr);
 	return (NULL);
 }
