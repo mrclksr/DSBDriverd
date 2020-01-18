@@ -141,21 +141,37 @@ ATF_TC_HEAD(get_devdescr, tc)
 
 ATF_TC_BODY(get_devdescr, tc)
 {
-	char	  *descr;
-	devinfo_t testdev_pci;
+	char	  *descr1, *descr2;
+	devinfo_t testdev_pci1, testdev_pci2;
 
 	open_dbs();
+	bzero(&testdev_pci1, sizeof(testdev_pci1));
+	bzero(&testdev_pci2, sizeof(testdev_pci2));
 
-	testdev_pci.vendor = 0x0e11;
-	testdev_pci.device = 0xb178;
-	testdev_pci.subvendor = 0x0e11;
-	testdev_pci.subdevice = 0x4082;
+	/*
+	 * Test with vendor, device, subvendor, and subdevice
+	 */
+	testdev_pci1.vendor    = 0x0e11;
+	testdev_pci1.device    = 0xb178;
+	testdev_pci1.subvendor = 0x0e11;
+	testdev_pci1.subdevice = 0x4082;
 
-	descr = get_devdescr(pcidb, &testdev_pci);
-	ATF_REQUIRE(descr != NULL);
-	ATF_CHECK_STREQ_MSG(descr,
+	descr1 = get_devdescr(pcidb, &testdev_pci1);
+	ATF_REQUIRE(descr1 != NULL);
+	ATF_CHECK_STREQ_MSG(descr1,
 	    "Compaq Computer Corporation Smart Array 5i/532 Smart Array 532",
-	    "descr == \"%s\"", descr);
+	    "descr1 == \"%s\"", descr1);
+
+	/*
+	 * Test with a vendor-and-device-only record.
+	 */
+	testdev_pci2.vendor = 0x1023;
+	testdev_pci2.device = 0x9350;
+
+	descr2 = get_devdescr(pcidb, &testdev_pci2);
+	ATF_REQUIRE(descr2 != NULL);
+	ATF_CHECK_STREQ_MSG(descr2, "Trident Microsystems GUI Accelerator",
+	    "descr2 == \"%s\"", descr2);
 }
 
 ATF_TP_ADD_TCS(tp)
