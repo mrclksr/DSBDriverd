@@ -430,7 +430,7 @@ function netif.set_rc_conf_var(var, val)
 	return netif.run_sysrc(rc_var)
 end
 
-local function add_wlan_to_rc_conf(wlan)
+function netif.add_wlan_to_rc_conf(wlan)
 	netif.set_rc_conf_var("wlans_" .. wlan.parent, "wlan" .. wlan.child)
 	if wlan_create_args then
 		netif.set_rc_conf_var("create_args_wlan" .. wlan.child,
