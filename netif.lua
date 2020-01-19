@@ -101,7 +101,7 @@ end
 
 -- Returns the the unit (X) of a "wlanX" device name to a given
 -- parent device, or nil
-local function wlan_unit_from_parent(pdev)
+function wlan_unit_from_parent(pdev)
 	local l
 	local proc, e = io.popen("sysctl net.wlan")
 	if proc == nil then
