@@ -198,30 +198,40 @@ function netif.media_type(ifname)
 			end
 		end
 	end
-	proc:close()
 	return nil
 end
 
--- Returns the list of network interfaces from the output of "ifconfig" as
--- array.
-function netif.get_netifs()
+function netif.get_ifconfig_iflist()
+	local l
 	local iflist = {}
 	local proc, e = io.popen("ifconfig -l")
 	if proc == nil then
 		io.stderr:write(e)
 		return nil
 	end
-	local i = 1
 	for l in proc:lines() do
 		for w in string.gmatch(l, "%w+") do
-			type = netif.media_type(w)
-			if type ~= nil then
-				iflist[i] = w
-				i = i + 1
-			end
+			table.insert(iflist, w)
 		end
 	end
 	proc:close()
+	return iflist
+end
+
+-- Returns the list of network interfaces from the output of "ifconfig" as
+-- array.
+function netif.get_netifs()
+	local iflist = {}
+	local all_ifs = netif.get_ifconfig_iflist()
+	if all_ifs == nil then
+		return nil
+	end
+	for _, i in pairs(all_ifs) do
+		type = netif.media_type(i)
+		if type ~= nil then
+			table.insert(iflist, i)
+		end
+	end
 	return iflist
 end
 
