@@ -417,6 +417,10 @@ local function add_wlan_regdomain_args()
 	end
 end
 
+function netif.restart_netif(ifname)
+	return os.execute("service netif restart " .. ifname)
+end
+
 local function add_wlan_to_rc_conf(wlan)
 	local cmd = string.format("sysrc wlans_%s=\"wlan%d\"",
 	    wlan.parent, wlan.child)
@@ -473,7 +477,7 @@ function netif.create_wlan_devs()
 				local status = netif.link_status(child)
 				-- Only restart the interface if is isn't already associated
 				if status == nil or status ~= "associated" then
-					os.execute("service netif restart " .. child)
+					netif.restart_netif(child)
 				end
 			end
 		end
@@ -526,7 +530,7 @@ function netif.setup_ether_devs()
 				end
 				local inet4, inet6 = netif.get_inet_addr(i)
 				if inet6 == nil and inet4 == nil then
-					os.execute("service netif restart " .. i)
+					netif.restart_netif(i)
 				end
 			end
 		end
