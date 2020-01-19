@@ -421,18 +421,22 @@ function netif.restart_netif(ifname)
 	return os.execute("service netif restart " .. ifname)
 end
 
+function netif.run_sysrc(var)
+	return os.execute("sysrc " .. var)
+end
+
+function netif.set_rc_conf_var(var, val)
+	local rc_var = string.format("%s=\"%s\"", var, val)
+	return netif.run_sysrc(rc_var)
+end
+
 local function add_wlan_to_rc_conf(wlan)
-	local cmd = string.format("sysrc wlans_%s=\"wlan%d\"",
-	    wlan.parent, wlan.child)
-	os.execute(cmd)
+	netif.set_rc_conf_var("wlans_" .. wlan.parent, "wlan" .. wlan.child)
 	if wlan_create_args then
-		cmd = string.format("sysrc create_args_wlan%d=\"%s\"",
-		    wlan.child, wlan_create_args)
-		os.execute(cmd)
+		netif.set_rc_conf_var("create_args_wlan" .. wlan.child,
+		  wlan_create_args)
 	end
-	cmd = string.format("sysrc ifconfig_wlan%d=\"%s\"",
-	    wlan.child, wlan_ifconfig_args)
-	os.execute(cmd)
+	netif.set_rc_conf_var("ifconfig_wlan" .. wlan.child, wlan_ifconfig_args)
 end
 
 -- Creates and configures a new wlan child device (wlanX) for each wlan
@@ -524,9 +528,7 @@ function netif.setup_ether_devs()
 		  netif.find_netif(w.parent, ignore_netifs) == nil then
 			if not string.match(i, "wlan") then
 				if not netif.in_rc_conf(i) then
-					local cmd = string.format("sysrc ifconfig_%s=\"%s\"",
-					    i, ether_ifconfig_args)
-					os.execute(cmd)
+					netif.set_rc_conf_var('ifconfig_' .. i, ether_ifconfig_args)
 				end
 				local inet4, inet6 = netif.get_inet_addr(i)
 				if inet6 == nil and inet4 == nil then
