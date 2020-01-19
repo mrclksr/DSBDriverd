@@ -172,7 +172,7 @@ function netif.media_type(ifname)
 		return nil
 	end
 	for l in proc:lines() do
-		type = string.match(l, "^%s+media:%s([%g,%s]+)$")
+		local type = string.match(l, "^%s+media:%s([%g,%s]+)$")
 		if type then
 			proc:close()
 			if string.match(type, "%s[wW]ireless%s") or
