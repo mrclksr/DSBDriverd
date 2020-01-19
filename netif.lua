@@ -163,18 +163,31 @@ function netif.find_wlan(parent, wlans)
 	return nil
 end
 
--- Returns the network interface's media type or nil
-function netif.media_type(ifname)
-	local l
+function netif.get_ifconfig_if_info(ifname)
+	local info = {}
 	local proc, e = io.popen("ifconfig " .. ifname)
 	if proc == nil then
 		io.stderr:write(e)
 		return nil
 	end
+	local l
 	for l in proc:lines() do
+		table.insert(info, l)
+	end
+	proc:close()
+	return info
+end
+
+-- Returns the network interface's media type or nil
+function netif.media_type(ifname)
+	local l
+	local info = netif.get_ifconfig_if_info(ifname)
+	if info == nil then
+		return nil
+	end
+	for _, l in pairs(info) do
 		local type = string.match(l, "^%s+media:%s([%g,%s]+)$")
 		if type then
-			proc:close()
 			if string.match(type, "%s[wW]ireless%s") or
 			   string.match(type, "%s802.11%s") then
 				return netif.NETIF_TYPE_WLAN
