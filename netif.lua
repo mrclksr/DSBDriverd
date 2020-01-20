@@ -451,7 +451,7 @@ function netif.set_rc_conf_var(var, val)
 	return netif.run_sysrc(rc_var)
 end
 
-function netif.create_wlan_dev(parent, child_unit)
+function netif.create_wlan_child_dev(parent, child_unit)
 	local cmd = string.format("ifconfig wlan%d create wlandev %s",
 	    child_unit, parent)
 	return os.execute(cmd)
@@ -502,7 +502,7 @@ function netif.create_wlan_devs()
 				if w.child == nil then
 					max_unit = max_unit + 1
 					w.child = max_unit
-					netif.create_wlan_dev(w.parent, max_unit)
+					netif.create_wlan_child_dev(w.parent, max_unit)
 				end
 				netif.add_wlan_to_rc_conf(w)
 				local child = "wlan" .. w.child
