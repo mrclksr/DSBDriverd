@@ -1203,11 +1203,8 @@ load_driver(devinfo_t *dev)
 		}
 		if (cfgstate != NULL) {
 			if (cfg_call_function(cfgstate, "affirm",
-			    dev, driver) == 0) {
-				logprintx("affirm returned 0");
+			    dev, driver) == 0)
 				continue;
-			}
-			logprintx("affirm returned 1");
 		}
 		if (!is_kmod_loaded(driver)) {
 			logprintx("vendor=%04x product=%04x %s: " \
