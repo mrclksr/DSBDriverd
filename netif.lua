@@ -237,23 +237,19 @@ end
 
 -- Returns the given network interface's status
 function netif.link_status(ifname)
-	local l, status
-	local proc, e = io.popen("ifconfig " .. ifname)
-
-	if proc == nil then
-		io.stderr:write(e)
+	local i, status
+	local info = netif.get_ifconfig_if_info(ifname)
+	if info == nil then
 		return nil
 	end
-	for l in proc:lines() do
-		if string.match(l, "^[ \t]*status: (%w+)") then
-			status = string.gsub(l, "^[ \t]*status: ([%w, ]+)$", "%1")
+	for _, i in pairs(info) do
+		if string.match(i, "^[ \t]*status: (%w+)") then
+			status = string.gsub(i, "^[ \t]*status: ([%w, ]+)$", "%1")
 			if status ~= nil then
-				proc:close()
 				return status
 			end
 		end
 	end
-	proc:close()
 	return nil
 end
 
