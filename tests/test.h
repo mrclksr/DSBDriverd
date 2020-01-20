@@ -1,9 +1,4 @@
-ATF_TC(parse_devd_event);
-ATF_TC_HEAD(parse_devd_event, tc)
-{
-	atf_tc_set_md_var(tc, "descr", "Sample tests for parse_devd_event()");
-}
-
+ATF_TC_WITHOUT_HEAD(parse_devd_event);
 ATF_TC_BODY(parse_devd_event, tc)
 {
 	char *ev1 = strdup("!system=USB subsystem=DEVICE type=ATTACH "	    \
@@ -35,12 +30,7 @@ ATF_TC_BODY(parse_devd_event, tc)
 	ATF_CHECK_STREQ("INTERFACE", devdevent.subsystem);
 }
 
-ATF_TC(find_driver);
-ATF_TC_HEAD(find_driver, tc)
-{
-	atf_tc_set_md_var(tc, "descr", "Sample tests for find_driver()");
-}
-
+ATF_TC_WITHOUT_HEAD(find_driver);
 ATF_TC_BODY(find_driver, tc)
 {
 	char	  *testdriver1, *testdriver2, *testdriver3, *testdriver4;
@@ -110,12 +100,7 @@ ATF_TC_BODY(find_driver, tc)
 	ATF_CHECK_STREQ("if_ipheth", testdriver4);
 }
 
-ATF_TC(match_kmod_name);
-ATF_TC_HEAD(match_kmod_name, tc)
-{
-	atf_tc_set_md_var(tc, "descr", "Test match_kmod_name()");
-}
-
+ATF_TC_WITHOUT_HEAD(match_kmod_name);
 ATF_TC_BODY(match_kmod_name, tc)
 {
 	/* Should match */
@@ -133,12 +118,7 @@ ATF_TC_BODY(match_kmod_name, tc)
 
 }
 
-ATF_TC(get_devdescr);
-ATF_TC_HEAD(get_devdescr, tc)
-{
-	atf_tc_set_md_var(tc, "descr", "Test get_devdescr()");
-}
-
+ATF_TC_WITHOUT_HEAD(get_devdescr);
 ATF_TC_BODY(get_devdescr, tc)
 {
 	char	  *descr1, *descr2;
