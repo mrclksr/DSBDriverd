@@ -447,7 +447,7 @@ function netif.run_sysrc(var)
 end
 
 function netif.set_rc_conf_var(var, val)
-	local rc_var = string.format("%s=\"%s\"", var, val)
+	local rc_var = string.format('%s="%s"', var, val)
 	return netif.run_sysrc(rc_var)
 end
 
