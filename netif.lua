@@ -28,6 +28,8 @@ local netif = {}
 netif.NETIF_TYPE_WLAN  = 1
 netif.NETIF_TYPE_ETHER = 2
 
+netif.path_rc_conf = '/etc/rc.conf'
+
 -- Returns a pair, (true|false, NETIF_TYPE_WLAN|NETIF_TYPE_ETHER|nil),
 -- if the given driver name matches an ethernet or wireless device driver.
 function netif.match_netif_type(driver)
@@ -257,7 +259,7 @@ end
 -- via /etc/rc.conf
 function netif.in_rc_conf(ifname)
 	local l
-	local f, e = io.open("/etc/rc.conf")
+	local f, e = io.open(netif.path_rc_conf)
 	if f == nil then
 		io.stderr:write(e)
 		return nil
@@ -321,7 +323,7 @@ end
 function netif.wlans_from_rc_conf()
 	local i, l
 	local wlans = {}
-	local f, e = io.open("/etc/rc.conf")
+	local f, e = io.open(netif.path_rc_conf)
 	if f == nil then
 		io.stderr:write(e)
 		return nil
