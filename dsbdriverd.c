@@ -143,6 +143,7 @@ static int	 cfg_call_function(lua_State *L, const char *,
 		     const devinfo_t *, const char *);
 static int	 parse_devd_event(char *);
 static bool	 has_driver(uint16_t, uint16_t);
+static bool	 is_excluded(const char *);
 static bool	 is_kmod_loaded(const char *);
 static bool	 is_new(uint16_t, uint16_t, uint16_t, uint16_t);
 static bool	 match_ifsubclass(const devinfo_t *, uint16_t);
@@ -1164,27 +1165,34 @@ is_kmod_loaded(const char *name)
 	return (false);
 }
 
+static bool
+is_excluded(const char *kmod)
+{
+	int i;
+
+	for (i = 0; exclude[i] != NULL; i++) {
+		if (strcmp(exclude[i], kmod) == 0)
+			return (true);
+	}
+	return (false);
+}
+
 static void
 load_driver(devinfo_t *dev)
 {
-	int		i;
 	char		*driver;
 	const devinfo_t *dp;
 
 	for (dp = dev; (driver = find_driver(dp)) != NULL; dp = NULL) {
 		add_driver(dev, driver);
-		for (i = 0; exclude[i] != NULL; i++) {
-			if (strcmp(exclude[i], driver) == 0) {
-				logprintx("vendor=%04x product=%04x %s: " \
-				    "%s excluded from loading",
-				    dev->vendor, dev->device,
-				    dev->descr != NULL ? dev->descr : "",
-				    driver);
-				break;
-			}
-		}
-		if (exclude[i] != NULL)
+		if (is_excluded(driver)) {
+			logprintx("vendor=%04x product=%04x %s: " \
+				  "%s excluded from loading",
+				  dev->vendor, dev->device,
+				  dev->descr != NULL ? dev->descr : "",
+				  driver);
 			continue;
+		}
 		if (cfgstate != NULL) {
 			if (cfg_call_function(cfgstate, "affirm",
 			    dev, driver) == 0) {
