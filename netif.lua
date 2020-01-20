@@ -298,24 +298,22 @@ end
 
 -- Get the inet v4 and v6 addresses of the given interface
 function netif.get_inet_addr(ifname)
-	local l, inet4, inet6
-	local p, e = io.popen("ifconfig " .. ifname)
-	if p == nil then
-		io.stderr:write(e)
+	local i, inet4, inet6
+	local info = netif.get_ifconfig_if_info(ifname)
+	if info == nil then
 		return nil, nil
 	end
-	for l in p:lines() do
+	for _, i in pairs(info) do
 		if inet4 == nil then
-			inet4 = string.match(l, "^%s+inet%s+(%g+)")
+			inet4 = string.match(i, "^%s+inet%s+(%g+)")
 		end
 		if inet6 == nil then
-			inet6 = string.match(l, "^%s+inet6%s+([%x:]+)")
+			inet6 = string.match(i, "^%s+inet6%s+([%x:]+)")
 		end
 		if inet4 ~= nil and inet6 ~= nil then
 			break
 		end
 	end
-	p:close()
 	return inet4, inet6
 end
 
