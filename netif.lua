@@ -401,20 +401,13 @@ end
 -- net.wlan.devices. If found, the corresponding wlan device object is
 -- returned, else nil.
 function netif.wait_for_new_wlan(driver, timeout)
-	-- Get the corresponding device name without unit number from the
-	-- given driver (e.g., if_rtwn_usb -> rtwn)
 	local devname = netif.kmod_to_dev(driver)
-
 	local tries = 1
 	while true do
-		-- Periodically check for the parent device to appear
-		-- in net.wlan.devices. After loading the driver it
-		-- can take a moment for the device to appear.
 		local wlans = netif.get_wlan_devs()
 		local w = netif.find_wlan(devname, wlans)
 		if w == nil then
 			if tries >= timeout then
-				-- Give up
 				return nil
 			end
 			netif.sleep(1)
@@ -495,10 +488,6 @@ function netif.create_wlan_devs()
 		if ignore_netifs == nil or
 		   netif.find_netif(w.parent, ignore_netifs) == nil then
 			if not netif.wlan_rc_configured(w) or w.child == nil then
-				-- If w.child is nil, we create a new wlanX device
-				-- (X = max_unit + 1). Else, we are here because a wlan
-				-- device was created via /etc/rc.conf, but the wlanX device
-				-- doesn't match w.child, so we have to correct that.
 				if w.child == nil then
 					max_unit = max_unit + 1
 					w.child = max_unit
@@ -507,7 +496,6 @@ function netif.create_wlan_devs()
 				netif.add_wlan_to_rc_conf(w)
 				local child = "wlan" .. w.child
 				local status = netif.link_status(child)
-				-- Only restart the interface if is isn't already associated
 				if status == nil or status ~= "associated" then
 					netif.restart_netif(child)
 				end
@@ -520,20 +508,14 @@ end
 -- seconds for the device matching the driver to appear in the list of
 -- network interfaces. If found, the interface name is returned, else nil.
 function netif.wait_for_new_ether(driver, timeout)
-	-- Get the corresponding device name without unit number from the
-	-- given driver (e.g., if_rtwn_usb -> rtwn)
 	local devname = netif.kmod_to_dev(driver)
 
 	local tries = 1
 	while true do
-		-- Periodically check for the device to appear in the network
-		-- interface list. After loading the driver it can take a moment
-		-- for the device to appear.
 		local iflist = netif.get_netifs()
 		local ifname = netif.find_netif(devname, iflist)
 		if ifname == nil then
 			if tries >= timeout then
-				-- Give up
 				return nil
 			end
 			netif.sleep(1)
