@@ -28,7 +28,9 @@ local netif = {}
 netif.NETIF_TYPE_WLAN  = 1
 netif.NETIF_TYPE_ETHER = 2
 
-netif.path_rc_conf = '/etc/rc.conf'
+netif.path_rc_conf  = '/etc/rc.conf'
+netif.path_zoneinfo = '/var/db/zoneinfo'
+netif.path_zone_tab = '/usr/share/zoneinfo/zone.tab'
 
 -- Returns a pair, (true|false, NETIF_TYPE_WLAN|NETIF_TYPE_ETHER|nil),
 -- if the given driver name matches an ethernet or wireless device driver.
@@ -359,7 +361,7 @@ end
 -- or nil if not found
 function netif.get_wlan_region()
 	local l, zone, code
-	local f, e = io.open("/var/db/zoneinfo")
+	local f, e = io.open(netif.path_zoneinfo)
 	if f == nil then
 		io.stderr:write(e)
 		return nil
@@ -374,7 +376,7 @@ function netif.get_wlan_region()
 	if not zone then
 		return nil
 	end
-	f, e = io.open("/usr/share/zoneinfo/zone.tab")
+	f, e = io.open(netif.path_zone_tab)
 	if f == nil then
 		io.stderr:write(e)
 		return nil
