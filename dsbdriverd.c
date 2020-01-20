@@ -161,6 +161,7 @@ static void	 logprint(const char *, ...);
 static void	 logprintx(const char *, ...);
 static void	 open_dbs(void);
 static void	 open_cfg(void);
+static void	 daemonize(void);
 static void	 usage(void);
 static void	 print_pci_devinfo(const devinfo_t *);
 static void	 print_usb_devinfo(const devinfo_t *);
@@ -248,25 +249,8 @@ main(int argc, char *argv[])
 		return (EXIT_SUCCESS);
 	}
 	lockpidfile();
-
-	if (!fflag) {
-		/* Close all files except for pidfile and stderr. */
-		for (i = 0; i < 16; i++) {
-			if (pidfile_fileno(pfh) != i && fileno(stderr) != i)
-				(void)close(i);
-		}
-		/* Redirect error messages to logfile. */
-		if ((logfp = fopen(PATH_LOG, "a+")) == NULL)
-			err(EXIT_FAILURE, "fopen()");
-		(void)setvbuf(logfp, NULL, _IOLBF, 0);
-		(void)fclose(stderr);
-		/* For warn(), err(), etc. */
-		err_set_file(logfp);
-		logprintx("%s started", PROGRAM);
-		if (daemon(0, 1) == -1)
-			err(EXIT_FAILURE, "Failed to daemonize");
-		(void)pidfile_write(pfh);
-	}
+	if (!fflag)
+		daemonize();
 	if ((s = devd_connect()) == -1)
 		err(EXIT_FAILURE, "Couldn't connect to %s", PATH_DEVD_SOCKET);
 	open_cfg();
@@ -326,6 +310,29 @@ usage()
 	       "       %s [-l|-c vendor:device] | [-fn][-x driver,...]\n",
 	       PROGRAM, PROGRAM);
 	exit(EXIT_FAILURE);
+}
+
+static void
+daemonize()
+{
+	int i;
+
+	/* Close all files except for pidfile and stderr. */
+	for (i = 0; i < 16; i++) {
+		if (pidfile_fileno(pfh) != i && fileno(stderr) != i)
+			(void)close(i);
+	}
+	/* Redirect error messages to logfile. */
+	if ((logfp = fopen(PATH_LOG, "a+")) == NULL)
+		err(EXIT_FAILURE, "fopen()");
+	(void)setvbuf(logfp, NULL, _IOLBF, 0);
+	(void)fclose(stderr);
+	/* For warn(), err(), etc. */
+	err_set_file(logfp);
+	logprintx("%s started", PROGRAM);
+	if (daemon(0, 1) == -1)
+		err(EXIT_FAILURE, "Failed to daemonize");
+	(void)pidfile_write(pfh);
 }
 
 static void
