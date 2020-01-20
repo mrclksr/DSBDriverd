@@ -494,7 +494,7 @@ read_devd_event(int s, int *error)
 
 	if (lnbuf == NULL) {
 		if ((lnbuf = malloc(_POSIX2_LINE_MAX)) == NULL)
-			return (NULL);
+			err(EXIT_FAILURE, "malloc()");
 		bufsz = _POSIX2_LINE_MAX;
 	}
 	iov.iov_len  = sizeof(seq);
