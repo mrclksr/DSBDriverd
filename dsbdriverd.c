@@ -162,6 +162,7 @@ static void	 logprintx(const char *, ...);
 static void	 open_dbs(void);
 static void	 open_cfg(void);
 static void	 daemonize(void);
+static void	 die(const char *msg);
 static void	 usage(void);
 static void	 print_pci_devinfo(const devinfo_t *);
 static void	 print_usb_devinfo(const devinfo_t *);
@@ -294,7 +295,7 @@ main(int argc, char *argv[])
 				exit(EXIT_FAILURE);
 			}
 		} else if (error == SOCK_ERR_IO_ERROR)
-			err(EXIT_FAILURE, "read_devd_event()");
+			die("read_devd_event()");
 	}
 	/* NOTREACHED */
 	return (EXIT_SUCCESS);
@@ -331,7 +332,7 @@ daemonize()
 	err_set_file(logfp);
 	logprintx("%s started", PROGRAM);
 	if (daemon(0, 1) == -1)
-		err(EXIT_FAILURE, "Failed to daemonize");
+		die("Failed to daemonize");
 	(void)pidfile_write(pfh);
 }
 
@@ -494,7 +495,7 @@ read_devd_event(int s, int *error)
 
 	if (lnbuf == NULL) {
 		if ((lnbuf = malloc(_POSIX2_LINE_MAX)) == NULL)
-			err(EXIT_FAILURE, "malloc()");
+			die("malloc()");
 		bufsz = _POSIX2_LINE_MAX;
 	}
 	iov.iov_len  = sizeof(seq);
@@ -515,14 +516,14 @@ read_devd_event(int s, int *error)
 			}
 			if (errno == EAGAIN)
 				return (NULL);
-			err(EXIT_FAILURE, "recvmsg()");
+			die("recvmsg()");
 		} else if (n == 0 && rd == 0) {
 			*error = SOCK_ERR_CONN_CLOSED;
 			return (NULL);
 		}
 		if (rd + n + 1 > bufsz) {
 			if ((lnbuf = realloc(lnbuf, rd + n + 65)) == NULL)
-				err(EXIT_FAILURE, "realloc()");
+				die("realloc()");
 			bufsz = rd + n + 65;
 		}
 		(void)memcpy(lnbuf + rd, seq, n);
@@ -592,7 +593,7 @@ add_device()
 {
 	devlst = realloc(devlst, sizeof(devinfo_t) * (ndevs + 1));
 	if (devlst == NULL)
-		err(EXIT_FAILURE, "realloc()");
+		die("realloc()");
 	(void)memset(&devlst[ndevs], 0, sizeof(devinfo_t));
 	return (&devlst[ndevs++]);
 }
@@ -602,7 +603,7 @@ add_iface(devinfo_t *d, uint16_t class, uint16_t subclass, uint16_t protocol)
 {
 	d->iface = realloc(d->iface, sizeof(iface_t) * (d->nifaces + 1));
 	if (d->iface == NULL)
-		errx(EXIT_FAILURE, "realloc()");
+		die("realloc()");
 	d->iface[d->nifaces].class    = class;
 	d->iface[d->nifaces].subclass = subclass;
 	d->iface[d->nifaces].protocol = protocol;
@@ -868,14 +869,14 @@ get_pci_devs()
 	do {
 		conf = realloc(conf, buflen * sizeof(struct pci_conf));
 		if (conf == NULL)
-			err(EXIT_FAILURE, "realloc()");
+			die("realloc()");
 		pc.matches	 = conf;
 		pc.match_buf_len = buflen; buflen += MAX_PCI_DEVS;
 
 		if (ioctl(fd, PCIOCGETCONF, &pc) == -1)
-			err(EXIT_FAILURE, "ioctl(PCIOCGETCONF)");
+			die("ioctl(PCIOCGETCONF)");
 		if (pc.status == PCI_GETCONF_ERROR)
-			errx(EXIT_FAILURE,"ioctl(PCIOGETCONF) failed");
+			die("ioctl(PCIOGETCONF) failed");
 		for (i = 0; i < pc.num_matches; i++) {
 			dip = add_device();
 			dip->bus       = BUS_TYPE_PCI;
@@ -935,7 +936,7 @@ get_usb_devs()
 				    "%s: libusb20_dev_alloc_config()",
 				    libusb20_dev_get_desc(pdev));
 			} else if (cfg == NULL) {
-				warn("%s: libusb20_dev_alloc_config()",
+				logprint("%s: libusb20_dev_alloc_config()",
 				    libusb20_dev_get_desc(pdev));
 				continue;
 			}
@@ -992,7 +993,7 @@ find_driver(const devinfo_t *dev)
 		}
 	} else {
 		if (fseek(db, 0, SEEK_SET) == -1)
-			err(EXIT_FAILURE, "fseek()");
+			die("fseek()");
 		curdev = dev;
 	}
 	matching_columns = prev_column = 0;
