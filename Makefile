@@ -15,6 +15,7 @@ PCIDB0	       = ${PREFIX}/share/pciids/pci.ids
 PCIDB1	       = /usr/share/misc/pci_vendors
 CFGFILE        = config.lua
 CFGMODULES     = netif.lua
+SOURCES	       = ${PROGRAM}.c config.c device.c log.c
 INSTALL_TARGETS= ${PROGRAM} ${RCSCRIPT} ${CFGFILE} ${MANFILE}
 PROGRAM_FLAGS  = -Wall ${CFLAGS} ${CPPFLAGS} -DPROGRAM=\"${PROGRAM}\"
 PROGRAM_FLAGS += -DPATH_DRIVERS_DB=\"${DBDIR}/${DBFILE}\"
@@ -26,14 +27,15 @@ PROGRAM_FLAGS += -DPATH_PCIID_DB1=\"${PCIDB1}\"
 PROGRAM_FLAGS += -DPATH_USBID_DB=\"${USBDB}\"
 PROGRAM_FLAGS += -L${PREFIX}/lib -I${PREFIX}/include/lua52
 PROGRAM_LIBS   = -lusb -lutil -llua-5.2
+LUA_PROG      ?= lua52
 BSD_INSTALL_DATA    ?= install -m 0644
 BSD_INSTALL_SCRIPT  ?= install -m 555
 BSD_INSTALL_PROGRAM ?= install -s -m 555
 
 all: ${INSTALL_TARGETS}
 
-${PROGRAM}: ${PROGRAM}.c
-	${CC} -o ${PROGRAM} ${PROGRAM_FLAGS} ${PROGRAM}.c ${PROGRAM_LIBS}
+${PROGRAM}: ${SOURCES}
+	${CC} -o ${PROGRAM} ${PROGRAM_FLAGS} ${.ALLSRC} ${PROGRAM_LIBS}
 
 ${RCSCRIPT}: ${RCSCRIPT}.tmpl
 	sed -e 's|@PATH_PROGRAM@|${BINDIR}/${PROGRAM}|g' \
@@ -74,13 +76,14 @@ readme: readme.mdoc
 readmemd: readme.mdoc
 	mandoc -mdoc -Tmarkdown readme.mdoc | sed '1,1d; $$,$$d' > README.md
 
-tests/${PROGRAM}-test: ${PROGRAM}.c tests/test.h
+tests/${PROGRAM}-test: ${SOURCES} tests/test.h
 	${CC} -o tests/${PROGRAM}-test ${PROGRAM_FLAGS} \
 		-Wno-unused-function -Itests -DTEST=1 \
-		${PROGRAM}.c ${PROGRAM_LIBS} -latf-c
+		${SOURCES} ${PROGRAM_LIBS} -latf-c
 
 test: tests/${PROGRAM}-test
 	kyua test -k tests/Kyuafile
+	${LUA_PROG} tests/netif_tests.lua
 
 clean:
 	-rm -f ${PROGRAM}
