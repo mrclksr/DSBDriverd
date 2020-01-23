@@ -298,8 +298,11 @@ get_devdescr(const devinfo_t *dev)
 		return (NULL);
 	column = matching_columns = 0; infostr[0] = '\0';
 
-	if (fseek(fp, 0, SEEK_SET) == -1)
+	if (fseek(fp, 0, SEEK_SET) == -1) {
+		logprint("fseek()");
+		(void)fclose(fp);
 		return (NULL);
+	}
 	while (fgets(line, sizeof(line) - 1, fp) != NULL) {
 		if ((p = get_next_word_start(line)) == NULL ||
 		    *p == '#' || *p == '\n')
