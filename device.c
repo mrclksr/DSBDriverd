@@ -81,7 +81,7 @@ add_device(devinfo_t ***devlist)
 	for (len = 0, p = *devlist; p != NULL && *p != NULL; p++)
 		len++;
 	len++;
-	list = realloc(*devlist, sizeof(devinfo_t **) * (len + 1));
+	list = realloc(*devlist, sizeof(devinfo_t *) * (len + 1));
 	if (list == NULL)
 		return (NULL);
 	dev = malloc(sizeof(devinfo_t));
