@@ -79,6 +79,7 @@ static struct pidfh *pfh;		/* PID file handle. */
 
 static int  uconnect(const char *);
 static int  devd_connect(void);
+static int  devd_reconnect(int);
 static int  parse_devd_event(char *);
 static bool has_driver(uint16_t, uint16_t);
 static bool is_excluded(const char *);
@@ -209,6 +210,8 @@ main(int argc, char *argv[])
 		}
 		if (error == SOCK_ERR_CONN_CLOSED) {
 			/* Lost connection to devd. */
+			s = devd_reconnect(s);
+#if 0
 			(void)close(s);
 			logprintx("Lost connection to devd. " \
 			    "Reconnecting ...");
@@ -216,6 +219,7 @@ main(int argc, char *argv[])
 				diex("Connecting to devd " \
 				    "failed. Giving up.");
 			}
+#endif
 		} else if (error == SOCK_ERR_IO_ERROR)
 			die("read_devd_event()");
 	}
@@ -321,6 +325,17 @@ uconnect(const char *path)
 	if (fcntl(s, F_SETFL, fcntl(s, F_GETFL) | O_NONBLOCK) == -1)
 		return (-1);
 	return (s);
+}
+
+static int
+devd_reconnect(int sock)
+{
+	(void)close(sock);
+	logprintx("Lost connection to devd. Reconnecting ...");
+	if ((sock = devd_connect()) == -1)
+		diex("Connecting to devd failed. Giving up.");
+	logprintx("Connection to devd established");
+	return (sock);
 }
 
 static int
