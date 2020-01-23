@@ -104,7 +104,7 @@ static char *find_driver(const devinfo_t *);
 int
 main(int argc, char *argv[])
 {
-	int	 ch, error, i, s;
+	int	 ch, error, i, devd_sock;
 	char	 *ln, *p;
 	bool	 cflag, fflag, lflag;
 	fd_set	 rset;
@@ -176,7 +176,7 @@ main(int argc, char *argv[])
 		}
 		return (EXIT_SUCCESS);
 	}
-	if ((s = devd_connect()) == -1)
+	if ((devd_sock = devd_connect()) == -1)
 		err(EXIT_FAILURE, "Couldn't connect to %s", PATH_DEVD_SOCKET);
 	initcfg();
 
@@ -185,17 +185,17 @@ main(int argc, char *argv[])
 		load_driver(*dev);
 	}
 	for (;;) {
-		FD_ZERO(&rset); FD_SET(s, &rset);
-		while (select(s + 1, &rset, NULL, NULL, NULL) == -1) {
+		FD_ZERO(&rset); FD_SET(devd_sock, &rset);
+		while (select(devd_sock + 1, &rset, NULL, NULL, NULL) == -1) {
 			if (errno == EINTR)
 				continue;
 			else
 				die("select()");
 			/* NOTREACHED */
 		}
-		if (!FD_ISSET(s, &rset))
+		if (!FD_ISSET(devd_sock, &rset))
 			continue;
-		while ((ln = read_devd_event(s, &error)) != NULL) {
+		while ((ln = read_devd_event(devd_sock, &error)) != NULL) {
 			if (parse_devd_event(ln) == -1)
 				continue;
 			if (devdevent.type != DEVD_TYPE_ATTACH)
@@ -210,16 +210,7 @@ main(int argc, char *argv[])
 		}
 		if (error == SOCK_ERR_CONN_CLOSED) {
 			/* Lost connection to devd. */
-			s = devd_reconnect(s);
-#if 0
-			(void)close(s);
-			logprintx("Lost connection to devd. " \
-			    "Reconnecting ...");
-			if ((s = devd_connect()) == -1) {
-				diex("Connecting to devd " \
-				    "failed. Giving up.");
-			}
-#endif
+			devd_sock = devd_reconnect(devd_sock);
 		} else if (error == SOCK_ERR_IO_ERROR)
 			die("read_devd_event()");
 	}
