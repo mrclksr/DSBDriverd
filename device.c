@@ -24,26 +24,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
-#include <signal.h>
 #include <string.h>
 #include <ctype.h>
-#include <time.h>
-#include <limits.h>
-#include <libutil.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <err.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/param.h>
-#include <sys/module.h>
-#include <sys/linker.h>
 #include <sys/pciio.h>
-#include <sys/wait.h>
 #include <unistd.h>
-#include <paths.h>
 #include <libusb20_desc.h>
 #include <libusb20.h>
 
@@ -113,7 +100,7 @@ add_iface(devinfo_t *d, uint16_t class, uint16_t subclass, uint16_t protocol)
 {
 	d->iface = realloc(d->iface, sizeof(iface_t) * (d->nifaces + 1));
 	if (d->iface == NULL)
-		err(EXIT_FAILURE, "realloc()");
+		die("realloc()");
 	d->iface[d->nifaces].class    = class;
 	d->iface[d->nifaces].subclass = subclass;
 	d->iface[d->nifaces].protocol = protocol;

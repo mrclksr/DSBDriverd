@@ -26,11 +26,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <signal.h>
 #include <string.h>
 #include <ctype.h>
-#include <time.h>
-#include <limits.h>
 #include <libutil.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -41,12 +38,7 @@
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/linker.h>
-#include <sys/pciio.h>
-#include <sys/wait.h>
 #include <unistd.h>
-#include <paths.h>
-#include <libusb20_desc.h>
-#include <libusb20.h>
 
 #include "log.h"
 #include "device.h"
