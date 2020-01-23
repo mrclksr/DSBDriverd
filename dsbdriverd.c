@@ -47,11 +47,13 @@
 # include <atf-c.h>
 #endif
 
-#define MAX_EXCLUDES	     256
+#define MAX_EXCLUDES	 256
+#define PATH_DEVD_SOCKET "/var/run/devd.seqpacket.pipe"
 
-#define SOCK_ERR_IO_ERROR    2
-#define SOCK_ERR_CONN_CLOSED 1
-#define PATH_DEVD_SOCKET     "/var/run/devd.seqpacket.pipe"
+enum SOCK_ERR {
+	SOCK_ERR_CONN_CLOSED = 1,
+	SOCK_ERR_IO_ERROR
+};
 
 enum DB_COLUMNS {
 	DB_VENDOR_COLUMN = 1,
