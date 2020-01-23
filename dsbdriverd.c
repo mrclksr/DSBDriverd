@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 		return (EXIT_SUCCESS);
 	}
 	if ((devd_sock = devd_connect()) == -1)
-		err(EXIT_FAILURE, "Couldn't connect to %s", PATH_DEVD_SOCKET);
+		die("Couldn't connect to %s", PATH_DEVD_SOCKET);
 	initcfg();
 
 	for (dev = devlist; dev != NULL && *dev != NULL; dev++) {
@@ -208,10 +208,9 @@ main(int argc, char *argv[])
 				}
 			}
 		}
-		if (error == SOCK_ERR_CONN_CLOSED) {
-			/* Lost connection to devd. */
+		if (error == SOCK_ERR_CONN_CLOSED)
 			devd_sock = devd_reconnect(devd_sock);
-		} else if (error == SOCK_ERR_IO_ERROR)
+		else if (error == SOCK_ERR_IO_ERROR)
 			die("read_devd_event()");
 	}
 	/* NOTREACHED */
@@ -754,4 +753,3 @@ print_usb_devinfo(const devinfo_t *dev)
 		}
 	}
 }
-
