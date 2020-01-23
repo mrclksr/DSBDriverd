@@ -38,10 +38,10 @@ ATF_TC_BODY(find_driver, tc)
 	devinfo_t testdev1, testdev2, testdev3, testdev4;
 
 	open_drivers_db();
-	bzero(&testdev1, sizeof(testdev1));
-	bzero(&testdev2, sizeof(testdev2));
-	bzero(&testdev3, sizeof(testdev3));
-	bzero(&testdev4, sizeof(testdev4));
+	(void)memset(&testdev1, 0, sizeof(testdev1));
+	(void)memset(&testdev2, 0, sizeof(testdev2));
+	(void)memset(&testdev3, 0, sizeof(testdev3));
+	(void)memset(&testdev4, 0, sizeof(testdev4));
 
 	/*
 	 * Test that matches against vendor, device, subvendor, and
@@ -124,8 +124,8 @@ ATF_TC_BODY(get_devdescr, tc)
 	devinfo_t testdev_pci1, testdev_pci2;
 
 	open_drivers_db();
-	bzero(&testdev_pci1, sizeof(testdev_pci1));
-	bzero(&testdev_pci2, sizeof(testdev_pci2));
+	(void)memset(&testdev_pci1, 0, sizeof(testdev_pci1));
+	(void)memset(&testdev_pci2, 0, sizeof(testdev_pci2));
 
 	/*
 	 * Test with vendor, device, subvendor, and subdevice
