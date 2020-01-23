@@ -292,10 +292,14 @@ get_devdescr(const devinfo_t *dev)
 	errno = 0;
 	if (dev->bus == BUS_TYPE_PCI) {
 		if ((fp = fopen(PATH_PCIID_DB0, "r")) == NULL &&
-		    (fp = fopen(PATH_PCIID_DB1, "r")) == NULL)
+		    (fp = fopen(PATH_PCIID_DB1, "r")) == NULL) {
+			logprint("Couldn't open PCI ID database");
 			return (NULL);
-	} else if ((fp = fopen(PATH_USBID_DB, "r")) == NULL)
+		}
+	} else if ((fp = fopen(PATH_USBID_DB, "r")) == NULL) {
+		logprint("Couldn't open USB ID database");
 		return (NULL);
+	}
 	column = matching_columns = 0; infostr[0] = '\0';
 
 	if (fseek(fp, 0, SEEK_SET) == -1) {
