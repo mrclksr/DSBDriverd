@@ -459,8 +459,10 @@ initcfg()
 		return;
 	if (exclude[0] != NULL)
 		return;
-	if (cfg->exclude_len > MAX_EXCLUDES - 1)
-		diex("Exclude list exceeds MAX_EXCLUDES - 1");
+	if (cfg->exclude_len > MAX_EXCLUDES - 1) {
+		diex("Number of elements in exclude list exceeds %d",
+		    MAX_EXCLUDES - 1);
+	}
 	for (i = 0; i < MAX_EXCLUDES - 1 && i < cfg->exclude_len; i++)
 		exclude[i] = cfg->exclude[i];
 	exclude[i] = NULL;
