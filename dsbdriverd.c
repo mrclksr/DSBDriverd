@@ -113,7 +113,9 @@ main(int argc, char *argv[])
 	fd_set	 rset;
 	uint16_t vendor, device;
 	devinfo_t **new_devs, **dev;
-	
+
+	exclude[0] = NULL;
+
 	cflag = fflag = dryrun = lflag = false;
 	while ((ch = getopt(argc, argv, "c:flnhx:")) != -1) {
 		switch (ch) {
@@ -439,17 +441,19 @@ open_drivers_db()
 static void
 initcfg()
 {
-	int i, j;
+	int i;
 
 	cfg = open_cfg(PATH_CFG_FILE);
 	if (cfg == NULL)
 		return;
 	if (cfg->exclude == NULL)
 		return;
-	for (i = 0; exclude[i] != NULL; i++)
-		;
-	for (j = 0; i < MAX_EXCLUDES - 1 && j < cfg->exclude_len; j++)
-		exclude[i++] = cfg->exclude[j];
+	if (exclude[0] != NULL)
+		return;
+	if (cfg->exclude_len > MAX_EXCLUDES - 1)
+		diex("Exclude list exceeds MAX_EXCLUDES - 1");
+	for (i = 0; i < MAX_EXCLUDES - 1 && i < cfg->exclude_len; i++)
+		exclude[i] = cfg->exclude[i];
 	exclude[i] = NULL;
 }
 
