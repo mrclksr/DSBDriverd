@@ -81,7 +81,6 @@ static struct pidfh *pfh;		/* PID file handle. */
 
 static int  uconnect(const char *);
 static int  devd_connect(void);
-static int  devd_reconnect(int);
 static int  parse_devd_event(char *);
 static bool has_driver(uint16_t, uint16_t);
 static bool is_excluded(const char *);
@@ -89,6 +88,7 @@ static bool is_kmod_loaded(const char *);
 static bool match_drivers_db_column(const devinfo_t *, char *, int);
 static bool match_device_column(const devinfo_t *, char *);
 static bool match_kmod_name(const char *, const char *);
+static void devd_reconnect(int *);
 static void process_devs(devinfo_t **);
 static void call_on_add_device(devinfo_t *);
 static void show_drivers(uint16_t, uint16_t);
@@ -205,7 +205,7 @@ main(int argc, char *argv[])
 			}
 		}
 		if (error == SOCK_ERR_CONN_CLOSED)
-			devd_sock = devd_reconnect(devd_sock);
+			devd_reconnect(&devd_sock);
 		else if (error == SOCK_ERR_IO_ERROR)
 			die("read_devd_event()");
 	}
@@ -322,15 +322,14 @@ uconnect(const char *path)
 	return (s);
 }
 
-static int
-devd_reconnect(int sock)
+static void
+devd_reconnect(int *sock)
 {
-	(void)close(sock);
+	(void)close(*sock);
 	logprintx("Lost connection to devd. Reconnecting ...");
-	if ((sock = devd_connect()) == -1)
+	if ((*sock = devd_connect()) == -1)
 		diex("Connecting to devd failed. Giving up.");
 	logprintx("Connection to devd established");
-	return (sock);
 }
 
 static int
