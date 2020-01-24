@@ -155,11 +155,28 @@ ATF_TC_BODY(get_devdescr, tc)
 	    "descr2 == \"%s\"", descr2);
 }
 
+ATF_TC_WITHOUT_HEAD(create_exclude_list);
+ATF_TC_BODY(create_exclude_list, tc)
+{
+	int i;
+	char *str = strdup("foo,bar , ,, baz,");
+	char *expect[3] = { "foo", "bar", "baz" };
+
+	create_exclude_list(str);
+	for (i = 0; exclude[i] != NULL; i++)
+		;
+	ATF_REQUIRE(i == 3);
+	for (i = 0; exclude[i] != NULL; i++)
+		ATF_CHECK_STREQ(expect[i], exclude[i]);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, parse_devd_event);
 	ATF_TP_ADD_TC(tp, find_driver);
 	ATF_TP_ADD_TC(tp, match_kmod_name);
 	ATF_TP_ADD_TC(tp, get_devdescr);
+	ATF_TP_ADD_TC(tp, create_exclude_list);
+
 	return atf_no_error();
 }
