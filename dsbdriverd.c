@@ -88,6 +88,7 @@ static bool is_kmod_loaded(const char *);
 static bool match_drivers_db_column(const devinfo_t *, char *, int);
 static bool match_device_column(const devinfo_t *, char *);
 static bool match_kmod_name(const char *, const char *);
+static void create_exclude_list(char *);
 static void devd_reconnect(int *);
 static void process_devs(devinfo_t **);
 static void call_on_add_device(devinfo_t *);
@@ -141,16 +142,7 @@ main(int argc, char *argv[])
 			dryrun = true;
 			break;
 		case 'x':
-			for (i = 0, p = optarg; i < MAX_EXCLUDES - 1 &&
-			    (p = strtok(p, ",")) != NULL; i++, p = NULL) {
-				exclude[i] = p;
-			}
-			if (i >= MAX_EXCLUDES - 1) {
-				errx(EXIT_FAILURE,
-				    "Number of elements in exclude list " \
-				    "exceeds %d", MAX_EXCLUDES - 1);
-			}
-			exclude[i] = NULL;
+			create_exclude_list(optarg);
 			break;
 		case 'h':
 		case '?':
@@ -234,6 +226,23 @@ process_devs(devinfo_t **devs)
 		call_on_add_device(*devs);
 		load_driver(*devs++);
 	}
+}
+
+static void
+create_exclude_list(char *list)
+{
+	int   i;
+	char *p;
+
+	for (i = 0, p = list; i < MAX_EXCLUDES - 1 &&
+	    (p = strtok(p, ", ")) != NULL; i++, p = NULL) {
+		exclude[i] = p;
+	}
+	if (i >= MAX_EXCLUDES - 1) {
+		errx(EXIT_FAILURE, "Number of elements in exclude list " \
+		    "exceeds %d", MAX_EXCLUDES - 1);
+	}
+	exclude[i] = NULL;
 }
 
 static void
