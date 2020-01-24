@@ -89,6 +89,7 @@ static bool is_kmod_loaded(const char *);
 static bool match_drivers_db_column(const devinfo_t *, char *, int);
 static bool match_device_column(const devinfo_t *, char *);
 static bool match_kmod_name(const char *, const char *);
+static void process_devs(devinfo_t **);
 static void call_on_add_device(devinfo_t *);
 static void show_drivers(uint16_t, uint16_t);
 static void lockpidfile(void);
@@ -182,10 +183,8 @@ main(int argc, char *argv[])
 		die("Couldn't connect to %s", PATH_DEVD_SOCKET);
 	initcfg();
 
-	for (dev = devlist; dev != NULL && *dev != NULL; dev++) {
-		call_on_add_device(*dev);
-		load_driver(*dev);
-	}
+	process_devs(devlist);
+
 	for (;;) {
 		FD_ZERO(&rset); FD_SET(devd_sock, &rset);
 		while (select(devd_sock + 1, &rset, NULL, NULL, NULL) == -1) {
@@ -202,10 +201,7 @@ main(int argc, char *argv[])
 				continue;
 			if (devdevent.system == DEVD_SYSTEM_USB) {
 				new_devs = get_usb_devs(&devlist);
-				while (new_devs != NULL && *new_devs != NULL) {
-					call_on_add_device(*new_devs);
-					load_driver(*new_devs++);
-				}
+				process_devs(new_devs);
 			}
 		}
 		if (error == SOCK_ERR_CONN_CLOSED)
@@ -227,6 +223,15 @@ usage()
 	       "       %s [-l | -c vendor:device] | [-fn][-x driver,...]\n",
 	       PROGRAM, PROGRAM);
 	exit(EXIT_FAILURE);
+}
+
+static void
+process_devs(devinfo_t **devs)
+{
+	while (devs != NULL && *devs != NULL) {
+		call_on_add_device(*devs);
+		load_driver(*devs++);
+	}
 }
 
 static void
