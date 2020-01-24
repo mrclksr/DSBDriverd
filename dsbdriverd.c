@@ -192,7 +192,6 @@ main(int argc, char *argv[])
 			if (errno == EINTR)
 				continue;
 			die("select()");
-			/* NOTREACHED */
 		}
 		if (!FD_ISSET(devd_sock, &rset))
 			continue;
