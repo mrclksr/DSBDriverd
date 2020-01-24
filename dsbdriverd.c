@@ -191,8 +191,7 @@ main(int argc, char *argv[])
 		while (select(devd_sock + 1, &rset, NULL, NULL, NULL) == -1) {
 			if (errno == EINTR)
 				continue;
-			else
-				die("select()");
+			die("select()");
 			/* NOTREACHED */
 		}
 		if (!FD_ISSET(devd_sock, &rset))
