@@ -73,7 +73,7 @@ struct devd_event_s {
 } devdevent;
 
 static bool	 dryrun;		/* Do not load any drivers if true. */
-static FILE	 *db;			/* File pointer for drivers database. */
+static FILE	 *driversdb;		/* File pointer for drivers database. */
 static char	 *exclude[MAX_EXCLUDES];/* List of drivers to exclude. */
 static config_t  *cfg;
 static devinfo_t **devlist;		/* List of devices. */
@@ -432,7 +432,7 @@ parse_devd_event(char *str)
 static void
 open_drivers_db()
 {
-	if ((db = fopen(PATH_DRIVERS_DB, "r")) == NULL)
+	if ((driversdb = fopen(PATH_DRIVERS_DB, "r")) == NULL)
 		die("fopen(%s)", PATH_DRIVERS_DB);
 }
 
@@ -481,12 +481,12 @@ find_driver(const devinfo_t *dev)
 			skip = true;
 		}
 	} else {
-		if (fseek(db, 0, SEEK_SET) == -1)
+		if (fseek(driversdb, 0, SEEK_SET) == -1)
 			die("fseek()");
 		curdev = dev;
 	}
 	matching_columns = prev_column = 0;
-	while (fgets(ln, sizeof(ln), db) != NULL) {
+	while (fgets(ln, sizeof(ln), driversdb) != NULL) {
 		len = strlen(ln);
 		/* Remove '\r', '\n', and '#' */
 		lp = ln;
@@ -526,7 +526,7 @@ find_driver(const devinfo_t *dev)
 				 * record. Get the driver name in the next
 				 * iteration.
 				 */
-				(void)fseek(db, -len, SEEK_CUR);
+				(void)fseek(driversdb, -len, SEEK_CUR);
 			}
 			if (prev_column == matching_columns)
 				return (strtok_r(driver, "\t ", &last));
