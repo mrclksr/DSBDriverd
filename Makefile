@@ -57,7 +57,7 @@ install: ${INSTALL_TARGETS}
 	if [ ! -d ${DESTDIR}${DBDIR} ]; then \
 		mkdir -p ${DESTDIR}${DBDIR}; \
 	fi
-	if [ -d ${DESTDIR}${CFGDIR} ]; then \
+	if [ ! -d ${DESTDIR}${CFGDIR} ]; then \
 		mkdir -p ${DESTDIR}${CFGDIR}; \
 	fi
 	${BSD_INSTALL_DATA} ${DBFILE} ${DESTDIR}${DBDIR}
