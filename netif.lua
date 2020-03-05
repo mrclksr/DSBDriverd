@@ -271,6 +271,10 @@ function netif.in_rc_conf(ifname)
 			f:close()
 			return true
 		end
+		if string.match(l, "^[ \t]*ifconfig_" .. ifname .. "_ipv6") then
+			f:close()
+			return true
+		end
 	end
 	f:close()
 	return false
@@ -457,6 +461,10 @@ function netif.add_wlan_to_rc_conf(wlan)
 		  wlan_create_args)
 	end
 	netif.set_rc_conf_var("ifconfig_wlan" .. wlan.child, wlan_ifconfig_args)
+	if enable_ipv6 then
+		netif.set_rc_conf_var("ifconfig_wlan" .. wlan.child .. "_ipv6",
+		  wlan_ifconfig_ipv6_args)
+	end
 end
 
 -- Creates and configures a new wlan child device (wlanX) for each wlan
@@ -471,7 +479,9 @@ function netif.create_wlan_devs()
 	if wlan_ifconfig_args == nil then
 		wlan_ifconfig_args = "up scan WPA DHCP"
 	end
-
+	if wlan_ifconfig_ipv6_args == nil then
+		wlan_ifconfig_ipv6_args = "inet6 accept_rtadv"
+	end
 	-- Calculate the next available unit number for the child device
 	max_unit = -1
 	for _, w in pairs(wlans) do
@@ -533,12 +543,19 @@ function netif.setup_ether_devs()
 	if ether_ifconfig_args == nil then
 		ether_ifconfig_args = "DHCP"
 	end
+	if ether_ifconfig_ipv6_args == nil then
+		ether_ifconfig_ipv6_args = "inet6 accept_rtadv"
+	end
 	for _, i in pairs(iflist) do
 		if ignore_netifs == nil or
 		  netif.find_netif(i, ignore_netifs) == nil then
 			if not string.match(i, "wlan") then
 				if not netif.in_rc_conf(i) then
 					netif.set_rc_conf_var('ifconfig_' .. i, ether_ifconfig_args)
+					if enable_ipv6 then
+						netif.set_rc_conf_var('ifconfig_' .. i .. "_ipv6",
+						  ether_ifconfig_ipv6_args)
+					end
 				end
 				local inet4, inet6 = netif.get_inet_addr(i)
 				if inet6 == nil and inet4 == nil then
