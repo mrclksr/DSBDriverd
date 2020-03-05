@@ -422,17 +422,12 @@ function netif.wait_for_new_wlan(driver, timeout)
 	end
 end
 
-local function add_wlan_regdomain_args()
+local function get_wlan_regdomain_args()
 	local country = netif.get_wlan_region()
 	if country == nil then
-		return
+		return ""
 	end
-	local args = "down country " .. country
-	if wlan_create_args ~= nil then
-		wlan_create_args = args .. " " .. wlan_create_args
-	else
-		wlan_create_args = args
-	end
+	return "down country " .. country
 end
 
 function netif.restart_netif(ifname)
@@ -455,10 +450,20 @@ function netif.create_wlan_child_dev(parent, child_unit)
 end
 
 function netif.add_wlan_to_rc_conf(wlan)
+	local args
+
 	netif.set_rc_conf_var("wlans_" .. wlan.parent, "wlan" .. wlan.child)
-	if wlan_create_args then
-		netif.set_rc_conf_var("create_args_wlan" .. wlan.child,
-		  wlan_create_args)
+	if wlan_set_country then
+		args = get_wlan_regdomain_args()
+	end
+	if wlan_create_args ~= nil then
+		if args == nil then
+			args = ""
+		end
+		args = args .. " " .. wlan_create_args
+	end
+	if args ~= nil then
+		netif.set_rc_conf_var("create_args_wlan" .. wlan.child, args)
 	end
 	netif.set_rc_conf_var("ifconfig_wlan" .. wlan.child, wlan_ifconfig_args)
 	if enable_ipv6 then
@@ -473,9 +478,6 @@ function netif.create_wlan_devs()
 	local w, max_unit
 	local wlans = netif.get_wlan_devs()
 
-	if wlan_set_country then
-		add_wlan_regdomain_args()
-	end
 	if wlan_ifconfig_args == nil then
 		wlan_ifconfig_args = "up scan WPA DHCP"
 	end
