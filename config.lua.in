@@ -60,8 +60,10 @@ wlan_set_country = true
 -- The init() function is run on startup before adding devices. It doesn't
 -- take any arguments. The return value is ignored.
 --
--- function init()
--- end
+function init()
+	netif.setup_ether_devs()
+	netif.create_wlan_devs()
+end
 
 -- The on_load_kmod() function is called after loading a driver/kmod (string)
 -- for the given device object. The return value is ignored. 
