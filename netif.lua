@@ -535,7 +535,7 @@ function netif.setup_ether_devs()
 	end
 	for _, i in pairs(iflist) do
 		if ignore_netifs == nil or
-		  netif.find_netif(w.parent, ignore_netifs) == nil then
+		  netif.find_netif(i, ignore_netifs) == nil then
 			if not string.match(i, "wlan") then
 				if not netif.in_rc_conf(i) then
 					netif.set_rc_conf_var('ifconfig_' .. i, ether_ifconfig_args)
