@@ -10,9 +10,13 @@ netif = require("netif")
 -- setup functions
 -- ignore_netifs = { "ath0" }
 
--- This is a boolean variable which controls the whether to auto configure
+-- This is a boolean variable which controls whether to auto configure
 -- network devices
 enable_netconfig = true
+
+-- This is a boolean variable which controls whether IPv6 should be enabled
+-- on the network interfaces.
+enable_ipv6 = true
 
 -- This variable defines the maximum number of seconds to wait for a network
 -- interface to appear (after loading its driver).
