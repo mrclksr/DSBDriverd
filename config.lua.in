@@ -35,6 +35,15 @@ wlan_set_country = true
 -- This is a string containing ifconfig arguments to start the ethernet
 -- interfaces.
 -- ether_ifconfig_args = "DHCP"
+
+-- This is a string containing ifconfig arguments to start the IPv6 ethernet
+-- interfaces.
+-- ether_ifconfig_ipv6_args = "inet6 accept_rtadv"
+
+-- This is a string containing ifconfig arguments to start the IPv6 wlan
+-- interfaces.
+-- wlan_ifconfig_ipv6_args = "inet6 accept_rtadv"
+
 ------------------------------------------------------------------------------
 -- Functions
 --
