@@ -469,7 +469,6 @@ function netif.add_wlan_to_rc_conf(wlan)
 	if enable_ipv6 then
 		netif.set_rc_conf_var("ifconfig_wlan" .. wlan.child .. "_ipv6",
 		  wlan_ifconfig_ipv6_args)
-		netif.set_rc_conf_var('rtsold_enable', 'YES')
 	end
 end
 
@@ -558,7 +557,6 @@ function netif.setup_ether_devs()
 					if enable_ipv6 then
 						netif.set_rc_conf_var('ifconfig_' .. i .. "_ipv6",
 						  ether_ifconfig_ipv6_args)
-						netif.set_rc_conf_var('rtsold_enable', 'YES')
 					end
 				end
 				local inet4, inet6 = netif.get_inet_addr(i)
