@@ -2039,7 +2039,7 @@ ips
 	1014
 		9005
 
-if_ipw
+if_ipw ipw_bss ipw_ibss ipw_monitor
 	8086
 		1043
 
@@ -2081,12 +2081,14 @@ isp
 		6312
 		6322
 		5432
-if_iwi
+
+if_iwi iwi_bss iwi_ibss iwi_monitor
 	8086
 		4220
 		4221
 		4223
 		4224
+
 if_iwm
 	8086
 		08b1
