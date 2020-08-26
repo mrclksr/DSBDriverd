@@ -458,9 +458,11 @@ function netif.add_wlan_to_rc_conf(wlan)
 	end
 	if wlan_create_args ~= nil then
 		if args == nil then
-			args = ""
+			args = wlan_create_args
+
+		else
+			args = args .. " " .. wlan_create_args
 		end
-		args = args .. " " .. wlan_create_args
 	end
 	if args ~= nil then
 		netif.set_rc_conf_var("create_args_wlan" .. wlan.child, args)
