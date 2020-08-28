@@ -34,7 +34,7 @@ dsbdriverd_start() {
 		    sed -E 's/[ ]+/,/g')"
 	fi
 	echo "Starting ${name}."
-	@PATH_PROGRAM@ $dsbdriverd_flags
+	${command} $dsbdriverd_flags
 }
 
 run_rc_command "$1"
