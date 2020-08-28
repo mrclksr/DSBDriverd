@@ -36,7 +36,9 @@ Just show what would be done, but do not load any drivers.
 .It Fl x
 Exclude every
 .Ar driver
-in the comma separated list from loading.
+in the comma separated list from loading. The list set via the
+.Fl x
+flag takes precedence over the exclude list defined in the config file.
 .El
 .Sh FILES
 .Bl -tag -width @PATH_DB@ -compact
