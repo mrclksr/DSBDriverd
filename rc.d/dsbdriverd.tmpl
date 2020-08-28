@@ -33,7 +33,7 @@ dsbdriverd_start() {
 		dsbdriverd_flags="-x $(echo $dsbdriverd_exclude |
 		    sed -E 's/[ ]+/,/g')"
 	fi
-
+	echo "Starting ${name}."
 	@PATH_PROGRAM@ $dsbdriverd_flags
 }
 
