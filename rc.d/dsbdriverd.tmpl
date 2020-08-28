@@ -21,8 +21,9 @@
 name=dsbdriverd
 desc="automatically try to load the suitable driver for your PCI and USB hardware"
 rcvar=dsbdriverd_enable
-pidfile=@PATH_PIDFILE@
-start_cmd=${name}_start
+pidfile="@PATH_PIDFILE@"
+command="@PATH_PROGRAM@"
+start_cmd="${name}_start"
 load_rc_config $name
 
 : ${dsbdriverd_enable:="NO"}
