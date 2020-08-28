@@ -31,39 +31,11 @@
 #include "log.h"
 #include "config.h"
 
-static int  getint(lua_State *, const char *);
 static void setint_tbl_field(lua_State *, const char *, int);
 static void setstr_tbl_field(lua_State *, const char *, const char *);
 static void add_interface_tbl(lua_State *, const iface_t *);
 static void dev_to_tbl(lua_State *, const devinfo_t *dev);
-static char *getstr(lua_State *, const char *);
 static char **getstrarr(lua_State *, const char *, size_t *);
-
-static int
-getint(lua_State *L, const char *var)
-{
-	int val = -1;
-
-	lua_getglobal(L, var);
-	if (lua_isnumber(L, -1))
-		val = lua_tointeger(L, -1);
-	lua_pop(L, 1);
-
-	return (val);
-}
-
-static char *
-getstr(lua_State *L, const char *var)
-{
-	char *val = NULL;
-
-	lua_getglobal(L, var);
-	if (!lua_isnil(L, -1))
-		val = strdup(lua_tostring(L, -1));
-	lua_pop(L, 1);
-
-	return (val);
-}
 
 static char **
 getstrarr(lua_State *L, const char *var, size_t *len)
