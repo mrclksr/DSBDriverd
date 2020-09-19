@@ -1155,6 +1155,7 @@ if_urndis
 	*
 		* ifclass=EF ifsubclass=4 protocol=1
 		* ifclass=EF ifsubclass=1 protocol=1
+		* ifclass=EF ifsubclass=EF protocol=3
 		* ifclass=e0 ifsubclass=1 protocol=3
 
 if_ice
