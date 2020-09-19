@@ -1157,6 +1157,29 @@ if_urndis
 		* ifclass=EF ifsubclass=1 protocol=1
 		* ifclass=e0 ifsubclass=1 protocol=3
 
+if_ice
+	8086
+		124C
+		124D
+		124E
+		124F
+		151D
+		1591
+		1592
+		1593
+		1599
+		159A
+		159B
+		1890
+		1891
+		1892
+		1893
+		1894
+		1897
+		1898
+		1899
+		189A
+
 if_ixl
 	8086
 		1572
