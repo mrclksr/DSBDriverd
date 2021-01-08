@@ -16,8 +16,9 @@ is a daemon that automatically tries to find and load the
 suitable driver for your PCI and USB hardware. On startup
 .Nm
 scans the PCI and US(B) bus for all connected devices and looks up their
-driver in a database using information provided by the hardware. The same
-applies to USB devices attached to the system later at runtime.
+driver in a database and linker.hints files using information provided by
+the hardware. The same applies to USB devices attached to the system later
+at runtime.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
