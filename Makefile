@@ -15,7 +15,7 @@ PCIDB0	       = ${PREFIX}/share/pciids/pci.ids
 PCIDB1	       = /usr/share/misc/pci_vendors
 CFGFILE        = config.lua
 CFGMODULES     = netif.lua
-SOURCES	       = ${PROGRAM}.c config.c device.c log.c
+SOURCES	       = ${PROGRAM}.c config.c device.c hints.c log.c
 INSTALL_TARGETS= ${PROGRAM} ${RCSCRIPT} ${CFGFILE} ${MANFILE}
 PROGRAM_FLAGS  = -Wall ${CFLAGS} ${CPPFLAGS} -DPROGRAM=\"${PROGRAM}\"
 PROGRAM_FLAGS += -DPATH_DRIVERS_DB=\"${DBDIR}/${DBFILE}\"

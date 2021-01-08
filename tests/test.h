@@ -30,8 +30,8 @@ ATF_TC_BODY(parse_devd_event, tc)
 	ATF_CHECK_STREQ("INTERFACE", devdevent.subsystem);
 }
 
-ATF_TC_WITHOUT_HEAD(find_driver);
-ATF_TC_BODY(find_driver, tc)
+ATF_TC_WITHOUT_HEAD(find_driver_db);
+ATF_TC_BODY(find_driver_db, tc)
 {
 	char	  *testdriver1, *testdriver2, *testdriver3, *testdriver4;
 	iface_t	  testdev4_iface;
@@ -52,7 +52,7 @@ ATF_TC_BODY(find_driver, tc)
 	testdev1.subvendor = 0x103c;
 	testdev1.subdevice = 0x3102;
 
-	testdriver1 = find_driver(&testdev1);
+	testdriver1 = find_driver_db(&testdev1);
 	ATF_REQUIRE(testdriver1 != NULL);
 	ATF_CHECK_STREQ_MSG("if_bce", testdriver1, "drivername is %s",
 	    testdriver1);
@@ -63,10 +63,10 @@ ATF_TC_BODY(find_driver, tc)
 	testdev2.vendor = 0x14e4;
 	testdev2.device = 0x4306;
 
-	testdriver2 = find_driver(&testdev2);
+	testdriver2 = find_driver_db(&testdev2);
 	ATF_REQUIRE(testdriver2 != NULL);
 	ATF_CHECK_STREQ("if_bwn", testdriver2);
-	testdriver2 = find_driver(NULL);
+	testdriver2 = find_driver_db(NULL);
 	ATF_REQUIRE(testdriver2 != NULL);
 	ATF_CHECK_STREQ("bwn_v4_ucode", testdriver2);
 
@@ -78,7 +78,7 @@ ATF_TC_BODY(find_driver, tc)
 	testdev3.device   = 0xabba;
 	testdev3.revision = 0x10;
 
-	testdriver3 = find_driver(&testdev3);
+	testdriver3 = find_driver_db(&testdev3);
 	ATF_REQUIRE(testdriver3 != NULL);
 	ATF_CHECK_STREQ("if_cas", testdriver3);
 
@@ -94,7 +94,7 @@ ATF_TC_BODY(find_driver, tc)
 	testdev4.iface[0].subclass = 0x253;
 	testdev4.iface[0].protocol = 0x1;
 
-	testdriver4 = find_driver(&testdev4);
+	testdriver4 = find_driver_db(&testdev4);
 	ATF_REQUIRE(testdriver4 != NULL);
 	ATF_CHECK_STREQ("if_ipheth", testdriver4);
 }
@@ -173,7 +173,7 @@ ATF_TC_BODY(create_exclude_list, tc)
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, parse_devd_event);
-	ATF_TP_ADD_TC(tp, find_driver);
+	ATF_TP_ADD_TC(tp, find_driver_db);
 	ATF_TP_ADD_TC(tp, match_kmod_name);
 	ATF_TP_ADD_TC(tp, get_devdescr);
 	ATF_TP_ADD_TC(tp, create_exclude_list);

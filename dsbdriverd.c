@@ -43,6 +43,8 @@
 #include "log.h"
 #include "device.h"
 #include "config.h"
+#include "hints.h"
+
 #ifdef TEST
 # include <atf-c.h>
 #endif
@@ -102,6 +104,7 @@ static void daemonize(void);
 static void initcfg(void);
 static void usage(void);
 static char *read_devd_event(int, int *);
+static char *find_driver_db(const devinfo_t *);
 static char *find_driver(const devinfo_t *);
 
 #ifndef TEST
@@ -474,6 +477,27 @@ initcfg()
  */
 static char *
 find_driver(const devinfo_t *dev)
+{
+	static char *driver = NULL;
+	static uint16_t vendor, device;
+
+	if (dev != NULL) {
+		vendor = dev->vendor;
+		device = dev->device;
+	}
+	if (driver == NULL && dev == NULL)
+		return (find_driver_pnp(vendor, device));
+	if ((driver = find_driver_db(dev)) == NULL)
+		return (find_driver(NULL));
+	return (driver);
+}
+
+/*
+ * Returns the first (d != NULL) or next (d == NULL) matching driver for
+ * device from the drivers DB.
+ */
+static char *
+find_driver_db(const devinfo_t *dev)
 {
 	int	    matching_columns, prev_column, curr_column;
 	bool	    skip;
