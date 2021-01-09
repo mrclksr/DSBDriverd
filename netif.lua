@@ -354,11 +354,26 @@ function netif.wlan_rc_configured(wlan)
 	local w
 	local wlans = netif.wlans_from_rc_conf()
 	for _, w in pairs(wlans) do
-		if w.parent == wlan.parent and w.child == wlan.child then
+		if w.parent == wlan.parent then
 			return true
 		end
 	end
 	return false
+end
+
+-- Returns the unit number of the rc.conf configured
+-- (wlans_<parent>=wlan<unit>child) wlan device of a given parent wifi
+-- device. If not found, nil is returned.
+function netif.get_wlan_child_from_rc_conf(parent)
+	local w
+	local wlans = netif.wlans_from_rc_conf()
+
+	for _, w in pairs(wlans) do
+		if w.parent == parent then
+			return w.child
+		end
+	end
+	return nil
 end
 
 -- Returns the country code of the region defined in /var/db/zoneinfo,
@@ -477,7 +492,8 @@ end
 -- Creates and configures a new wlan child device (wlanX) for each wlan
 -- device object which doesn't have a child device yet.
 function netif.create_wlan_devs()
-	local w, max_unit
+	local w, max_unit, dev_is_new
+	local rc_wlans = netif.wlans_from_rc_conf()
 	local wlans = netif.get_wlan_devs()
 
 	if wlan_ifconfig_args == nil then
@@ -488,6 +504,11 @@ function netif.create_wlan_devs()
 	end
 	-- Calculate the next available unit number for the child device
 	max_unit = -1
+	for _, w in pairs(rc_wlans) do
+		if w.child ~= nil and w.child > max_unit then
+			max_unit = w.child
+		end
+	end
 	for _, w in pairs(wlans) do
 		if w.child ~= nil then
 			if w.child > max_unit then
@@ -499,19 +520,29 @@ function netif.create_wlan_devs()
 	-- a child ("wlanX"), and wasn't configured via /etc/rc.conf with
 	-- 'wlans_parent="wlan<max_unit>"'
 	for _, w in pairs(wlans) do
+		if w.child == nil then
+			dev_is_new = true
+		else
+			dev_is_new = false
+		end
 		if ignore_netifs == nil or
 		   netif.find_netif(w.parent, ignore_netifs) == nil then
-			if not netif.wlan_rc_configured(w) or w.child == nil then
+			if not netif.wlan_rc_configured(w) and dev_is_new then
 				if w.child == nil then
 					max_unit = max_unit + 1
 					w.child = max_unit
 					netif.create_wlan_child_dev(w.parent, max_unit)
 				end
 				netif.add_wlan_to_rc_conf(w)
-				local child = "wlan" .. w.child
-				local status = netif.link_status(child)
-				if status == nil or status ~= "associated" then
-					netif.restart_netif(child)
+			end
+			if dev_is_new then
+				w.child = netif.get_wlan_child_from_rc_conf(w.parent)
+				if w.child ~= nil then
+					local child = "wlan" .. w.child
+					local status = netif.link_status(child)
+					if status == nil or status ~= "associated" then
+						netif.restart_netif(child)
+					end
 				end
 			end
 		end
