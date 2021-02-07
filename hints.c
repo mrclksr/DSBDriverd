@@ -130,6 +130,8 @@ next_matching(hints_file_t *hf, uint16_t vendor, uint16_t device)
 				continue;
 			}
 			(void)strlcpy(kmod, str, slen + 1);
+			if (slen > 3 && strncmp(kmod + slen - 3, ".ko", 3) == 0)
+				kmod[slen - 3] = '\0';
 			continue;
 		} else if (strcmp(kmod, "kernel") == 0)
 			continue;
