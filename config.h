@@ -38,5 +38,5 @@ typedef struct config_s {
 
 extern int	call_cfg_function(config_t *, const char *, const devinfo_t *,
 			const char *);
-extern config_t	*open_cfg(const char *);
+extern config_t	*open_cfg(const char *, bool);
 #endif

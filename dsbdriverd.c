@@ -455,7 +455,7 @@ initcfg()
 {
 	int i;
 
-	cfg = open_cfg(PATH_CFG_FILE);
+	cfg = open_cfg(PATH_CFG_FILE, !dryrun);
 	if (cfg == NULL)
 		return;
 	if (cfg->exclude == NULL)

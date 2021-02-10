@@ -166,7 +166,7 @@ out:
 }
 
 config_t *
-open_cfg(const char *path)
+open_cfg(const char *path, bool init)
 {
 	config_t *cfg;
 	
@@ -184,7 +184,8 @@ open_cfg(const char *path)
 	luaL_openlibs(cfg->luastate);
 	if (luaL_dofile(cfg->luastate, PATH_CFG_FILE) != 0)
 		diex("%s", lua_tostring(cfg->luastate, -1));
-	call_cfg_function(cfg, "init", NULL, NULL);
+	if (init)
+		call_cfg_function(cfg, "init", NULL, NULL);
 	cfg->exclude = getstrarr(cfg->luastate, "exclude_kmods",
 	    &cfg->exclude_len);
 
