@@ -6,19 +6,13 @@ is a daemon that automatically tries to find and load the
 suitable driver for your PCI and USB hardware. On startup
 **dsbdriverd**
 scans the PCI and US(B) bus for all connected devices and looks up their
-driver in a database using information provided by the hardware. The same
-applies to USB devices attached to the system later at runtime.
+driver in a database and linker.hints files using information provided by
+the hardware. The same applies to USB devices attached to the system later
+at runtime.
 
 # INSTALLATION
-## Dependencies
-*lang/lua52*
-
-## Getting the source code
 
 	# git clone https://github.com/mrclksr/DSBDriverd.git
-
-## Building and installation
-
 	# cd DSBDriverd && make install
 
 # USAGE
@@ -49,7 +43,8 @@ applies to USB devices attached to the system later at runtime.
 
 **-n**
 
-> Just show what would be done, but do not load any drivers.
+> Just show what would be done, but do not load any drivers, or call any
+> Lua functions.
 
 **-x**
 
@@ -67,5 +62,9 @@ at boot time, add the following line to
 	dsbdriverd_enable="YES"
 
 In addtion you can specify flags using the
-*dsbdriverd\_flags* variable.
+*dsbdriverd\_flags*
+variable.
+
+in
+*/etc/rc.conf*
 
