@@ -303,7 +303,7 @@ has_driver(uint16_t vendor, uint16_t device)
 static void
 call_on_add_device(devinfo_t *dev)
 {
-	if (cfg != NULL)
+	if (cfg != NULL && !dryrun)
 		call_cfg_function(cfg, "on_add_device", dev, NULL);
 }
 
@@ -729,7 +729,7 @@ load_driver(devinfo_t *dev)
 				  driver);
 			continue;
 		}
-		if (cfg != NULL) {
+		if (cfg != NULL && !dryrun) {
 			if (call_cfg_function(cfg, "affirm", dev, driver) == 0)
 				continue;
 		}
@@ -739,7 +739,7 @@ load_driver(devinfo_t *dev)
 			    dev->descr != NULL ? dev->descr : "", driver);
 			if (!dryrun && kldload(driver) == -1)
 				logprint("kldload(%s)", driver);
-			if (cfg != NULL) {
+			if (cfg != NULL && !dryrun) {
 				(void)call_cfg_function(cfg, "on_load_kmod",
 				    dev, driver);
 			}
@@ -755,7 +755,7 @@ load_driver(devinfo_t *dev)
 		    dev->descr != NULL ? dev->descr : "");
 	}
 	/* We are done with this device */
-	if (cfg != NULL)
+	if (cfg != NULL && !dryrun)
 		(void)call_cfg_function(cfg, "on_finished", dev, NULL);
 }
 
