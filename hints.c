@@ -46,7 +46,7 @@ typedef struct pnp_info_list_s {
 	int    didx;		/* Index of "device" value in records. */
 	int    vendor;		/* Global "vendor" value for all records. */
 	int    recsleft;	/* Remaining records */
-	char   bus[8];		/* "pci" or "usb" */
+	char   bus[16];		/* Bus name (e.g. "pci", "usb") */
 	char   format[256];	/* Format string to parse the following recs */
 	char   *rec;		/* Start of current record */
 } pnp_info_list_t;
