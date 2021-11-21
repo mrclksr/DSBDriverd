@@ -42,7 +42,7 @@
 #define MAX_PCI_DEVS 32
 
 enum DESCR_DB_COLUMS {
-	DESCR_DB_VENDOR_COLUMN,	DESCR_DB_DEVICE_COLUMN,	DESCR_DB_SUB_COLUMN
+	DESCR_DB_VENDOR_COLUMN = 1, DESCR_DB_DEVICE_COLUMN, DESCR_DB_SUB_COLUMN
 };
 
 static bool	 is_new(devinfo_t **, uint16_t, uint16_t, uint16_t, uint16_t);
@@ -284,12 +284,13 @@ init_devlist()
 char *
 get_devdescr(const devinfo_t *dev)
 {
-	int	    column, matching_columns;
+	int	    column, matching_columns, must_match;
 	FILE	    *fp;
 	char	    *p, *descr;
 	static char infostr[_POSIX2_LINE_MAX], line[_POSIX2_LINE_MAX];
 
 	errno = 0;
+	must_match = 2;
 	if (dev->bus == BUS_TYPE_PCI) {
 		if ((fp = fopen(PATH_PCIID_DB0, "r")) == NULL &&
 		    (fp = fopen(PATH_PCIID_DB1, "r")) == NULL) {
@@ -300,7 +301,7 @@ get_devdescr(const devinfo_t *dev)
 		logprint("Couldn't open USB ID database");
 		return (NULL);
 	}
-	column = matching_columns = 0; infostr[0] = '\0';
+	matching_columns = 0; infostr[0] = '\0';
 
 	if (fseek(fp, 0, SEEK_SET) == -1) {
 		logprint("fseek()");
@@ -311,25 +312,23 @@ get_devdescr(const devinfo_t *dev)
 		if ((p = get_next_word_start(line)) == NULL ||
 		    *p == '#' || *p == '\n')
 			continue;
-		for (column = 0; line[column] == '\t'; column++)
+		for (column = 1; line[column - 1] == '\t'; column++)
 			;
-		if (column > matching_columns)
+		if (column <= matching_columns)
+			break;
+		if (column >= matching_columns + 2)
 			continue;
-		if (column < matching_columns) {
-			(void)fclose(fp);
-			return (infostr);
-		}
 		if (match_devdescr_column(dev, line, column)) {
+			matching_columns++;
 			if ((descr = get_next_word_start(NULL)) == NULL)
 				continue;
-			if (column > 0)
+			if (column > 1)
 				(void)strlcat(infostr, " ", sizeof(infostr));
 			(void)strlcat(infostr, descr, sizeof(infostr));
-			matching_columns++;
 		}
 	}
 	(void)fclose(fp);
-	if (column < matching_columns)
+	if (matching_columns >= must_match)
 		return (infostr);
 	return (NULL);
 }
