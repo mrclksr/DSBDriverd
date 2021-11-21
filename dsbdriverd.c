@@ -96,8 +96,9 @@ static void process_devs(devinfo_t **);
 static void call_on_add_device(devinfo_t *);
 static void show_drivers(uint16_t, uint16_t);
 static void lockpidfile(void);
-static void print_pci_devinfo(const devinfo_t *);
-static void print_usb_devinfo(const devinfo_t *);
+static void print_devinfo(const devinfo_t *dev);
+static void print_pci_devinfo(const devinfo_t *, const char *);
+static void print_usb_devinfo(const devinfo_t *, const char *);
 static void load_driver(devinfo_t *);
 static void open_drivers_db(void);
 static void daemonize(void);
@@ -168,12 +169,8 @@ main(int argc, char *argv[])
 	devlist = init_devlist();
 
 	if (lflag) {
-		for (dev = devlist; dev != NULL && *dev != NULL; dev++) {
-			if ((*dev)->bus == BUS_TYPE_PCI)
-				print_pci_devinfo(*dev);
-			else if ((*dev)->bus == BUS_TYPE_USB)
-				print_usb_devinfo(*dev);
-		}
+		for (dev = devlist; dev != NULL && *dev != NULL; dev++)
+			print_devinfo(*dev);
 		return (EXIT_SUCCESS);
 	}
 	if ((devd_sock = devd_connect()) == -1)
@@ -267,25 +264,55 @@ daemonize()
 	(void)pidfile_write(pfh);
 }
 
+static char **
+create_driver_list(const devinfo_t *dp, size_t *len)
+{
+	size_t	    ndrivers, i;
+	const char  *p;
+	static char *list[8];
+
+	*len = ndrivers = 0;
+	for (; (p = find_driver(dp)) != NULL; dp = NULL) {
+		for (i = 0; i < ndrivers; i++) {
+			if (strcmp(list[i], p) == 0)
+				break;
+		}
+		if (i == ndrivers) {
+			if (ndrivers >= sizeof(list) / sizeof(list[0])) {
+				logprintx("# of drivers for device %04x:%04x" \
+				    "exceeds limit", dp->vendor, dp->device);
+				return (list);
+			}
+			list[ndrivers] = strdup(p);
+			if (list[ndrivers] == NULL)
+				die("strdup()");
+			*len = ++ndrivers;
+		}
+	}
+	return (list);
+}
+
 static void
 show_drivers(uint16_t vendor, uint16_t device)
 {
-	char		*info;
-	devinfo_t	dev;
-	const char	*p;
-	const devinfo_t	*dp;
+	char	  *info, **driver_list;
+	size_t	  ndrivers, i;
+	devinfo_t dev;
 
 	(void)memset(&dev, 0, sizeof(dev));
 	dev.bus    = BUS_TYPE_PCI;
 	dev.vendor = vendor;
 	dev.device = device;
-	
+
 	if ((info = get_devdescr(&dev)) == NULL) {
 		dev.bus = BUS_TYPE_USB;
 		info = get_devdescr(&dev);
 	}
-	for (dp = &dev; (p = find_driver(dp)) != NULL; dp = NULL)
-		(void)printf("%s: %s\n", info != NULL ? info: "", p);
+	driver_list = create_driver_list(&dev, &ndrivers);
+	for (i = 0; i < ndrivers; i++) {
+		(void)printf("%s: %s\n", info != NULL ? info: "", driver_list[i]);
+		free(driver_list[i]);
+	}
 }
 
 static bool
@@ -760,39 +787,46 @@ load_driver(devinfo_t *dev)
 }
 
 static void
-print_pci_devinfo(const devinfo_t *dev)
+print_devinfo(const devinfo_t *dev)
 {
-	char		*p;
-	const devinfo_t	*dp;
+	char   **driver_list;
+	size_t i, ndrivers;
 
-	for (dp = dev; (p = find_driver(dp)) != NULL; dp = NULL) {
-		(void)printf("vendor=%04x product=%04x " \
-		    "class=%02x subclass=%02x bus=PCI %s: %s\n",
-		    dev->vendor, dev->device, dev->class, dev->subclass,
-		    dev->descr != NULL ? dev->descr : "", p);
+	driver_list = create_driver_list(dev, &ndrivers);
+	for (i = 0; i < ndrivers; i++) {
+		if (dev->bus == BUS_TYPE_PCI)
+			print_pci_devinfo(dev, driver_list[i]);
+		else if (dev->bus == BUS_TYPE_USB)
+			print_usb_devinfo(dev, driver_list[i]);
+		free(driver_list[i]);
 	}
 }
 
 static void
-print_usb_devinfo(const devinfo_t *dev)
+print_pci_devinfo(const devinfo_t *dev, const char *driver)
 {
-	int		i;
-	char		*p;
-	const devinfo_t *dp;
+	(void)printf("vendor=%04x product=%04x " \
+	    "class=%02x subclass=%02x bus=PCI %s: %s\n",
+	    dev->vendor, dev->device, dev->class, dev->subclass,
+	    dev->descr != NULL ? dev->descr : "", driver);
+}
 
-	for (dp = dev; (p = find_driver(dp)) != NULL; dp = NULL) {
-		(void)printf("vendor=%04x product=%04x " \
-		    "class=%02x subclass=%02x bus=USB %s: %s\n",
-		    dev->vendor, dev->device, dev->class, dev->subclass,
-		    dev->descr != NULL ? dev->descr : "", p);
-		for (i = 0; i < dev->nifaces; i++) {
-			(void)printf("vendor=%04x product=%04x "    \
-			    "ifclass=%02x ifsubclass=%02x bus=USB " \
-			    "protocol=%02x %s: %s\n",
-			    dev->vendor, dev->device,
-			    dev->iface[i].class, dev->iface[i].subclass,
-			    dev->iface[i].protocol,
-			    dev->descr != NULL ? dev->descr : "", p);
-		}
+static void
+print_usb_devinfo(const devinfo_t *dev, const char *driver)
+{
+	int i;
+
+	(void)printf("vendor=%04x product=%04x " \
+	    "class=%02x subclass=%02x bus=USB %s: %s\n",
+	    dev->vendor, dev->device, dev->class, dev->subclass,
+	    dev->descr != NULL ? dev->descr : "", driver);
+	for (i = 0; i < dev->nifaces; i++) {
+		(void)printf("vendor=%04x product=%04x "    \
+		    "ifclass=%02x ifsubclass=%02x bus=USB " \
+		    "protocol=%02x %s: %s\n",
+		    dev->vendor, dev->device,
+		    dev->iface[i].class, dev->iface[i].subclass,
+		    dev->iface[i].protocol,
+		    dev->descr != NULL ? dev->descr : "", driver);
 	}
 }
