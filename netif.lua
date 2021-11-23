@@ -592,8 +592,8 @@ function netif.setup_ether_devs()
 						  ether_ifconfig_ipv6_args)
 					end
 				end
-				local inet4, inet6 = netif.get_inet_addr(i)
-				if inet6 == nil and inet4 == nil then
+				local status = netif.link_status(i)
+				if status == nil or status ~= "active" then
 					netif.restart_netif(i)
 				end
 			end
