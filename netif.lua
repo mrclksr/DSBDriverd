@@ -258,8 +258,9 @@ function netif.link_status(ifname)
 end
 
 -- Returns "true" if the given network interface was configured
--- via /etc/rc.conf
-function netif.in_rc_conf(ifname)
+-- via /etc/rc.conf. The function looks for ifconfig_<ifname><suffix>.
+-- E.g.: ifconfig_alc0_ipv6, where suffix is '_ipv6'.
+function netif.in_rc_conf(ifname, suffix)
 	local l
 	local f, e = io.open(netif.path_rc_conf)
 	if f == nil then
@@ -267,11 +268,7 @@ function netif.in_rc_conf(ifname)
 		return nil
 	end
 	for l in f:lines() do
-		if string.match(l, "^[ \t]*ifconfig_" .. ifname) then
-			f:close()
-			return true
-		end
-		if string.match(l, "^[ \t]*ifconfig_" .. ifname .. "_ipv6") then
+		if string.match(l, "^[ \t]*ifconfig_" .. ifname .. suffix) then
 			f:close()
 			return true
 		end
@@ -585,12 +582,12 @@ function netif.setup_ether_devs()
 		if ignore_netifs == nil or
 		  netif.find_netif(i, ignore_netifs) == nil then
 			if not string.match(i, "wlan") then
-				if not netif.in_rc_conf(i) then
+				if not netif.in_rc_conf(i, '') then
 					netif.set_rc_conf_var('ifconfig_' .. i, ether_ifconfig_args)
-					if enable_ipv6 then
-						netif.set_rc_conf_var('ifconfig_' .. i .. "_ipv6",
-						  ether_ifconfig_ipv6_args)
-					end
+				end
+				if not netif.in_rc_conf(i, '_ipv6') and enable_ipv6 then
+					netif.set_rc_conf_var('ifconfig_' .. i .. "_ipv6",
+					  ether_ifconfig_ipv6_args)
 				end
 				local status = netif.link_status(i)
 				if status == nil or status ~= "active" then
