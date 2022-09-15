@@ -573,7 +573,7 @@ function netif.setup_ether_devs()
 	local i
 	local iflist = netif.get_netifs()
 	if ether_ifconfig_args == nil then
-		ether_ifconfig_args = "DHCP"
+		ether_ifconfig_args = "up DHCP"
 	end
 	if ether_ifconfig_ipv6_args == nil then
 		ether_ifconfig_ipv6_args = "inet6 accept_rtadv"
