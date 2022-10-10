@@ -257,18 +257,42 @@ function netif.link_status(ifname)
 	return nil
 end
 
+function netif.link_is_up(ifname)
+	local i, flag, flags
+	local info = netif.get_ifconfig_if_info(ifname)
+	if info == nil then
+		return nil
+	end
+	for _, i in pairs(info) do
+		flags = string.match(i, "^%w+:[ \t]+flags=[0-9]*<([%w, ]+)>")
+		if flags ~= nil then
+			for flag in string.gmatch(flags, "([^,]+)") do
+				if flag == "UP" then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+
 -- Returns "true" if the given network interface was configured
 -- via /etc/rc.conf. The function looks for ifconfig_<ifname><suffix>.
 -- E.g.: ifconfig_alc0_ipv6, where suffix is '_ipv6'.
 function netif.in_rc_conf(ifname, suffix)
 	local l
+	local pattern = "^[ \t]*ifconfig_" .. ifname
 	local f, e = io.open(netif.path_rc_conf)
 	if f == nil then
 		io.stderr:write(e)
 		return nil
 	end
+	if suffix ~= nil then
+		pattern = pattern .. suffix
+	end
 	for l in f:lines() do
-		if string.match(l, "^[ \t]*ifconfig_" .. ifname .. suffix) then
+		if string.match(l, pattern) then
 			f:close()
 			return true
 		end
@@ -590,7 +614,7 @@ function netif.setup_ether_devs()
 					  ether_ifconfig_ipv6_args)
 				end
 				local status = netif.link_status(i)
-				if status == nil or status ~= "active" then
+				if not netif.link_is_up(i) then
 					netif.restart_netif(i)
 				end
 			end

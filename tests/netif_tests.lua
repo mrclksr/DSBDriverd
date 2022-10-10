@@ -152,6 +152,27 @@ TestNetif = {}
 		lu.assertEquals('::1', ip6)
 	end
 
+	function TestNetif:test_link_is_up()
+		local netif = require('netif')
+		local ifconfig_output = {
+			'alc0: flags=8843<UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST> ' ..
+			'metric 0 mtu 1500',
+			'	options=c3198<VLAN_MTU,VLAN_HWTAGGING,VLAN_HWCSUM,TSO4,' ..
+			'WOL_MCAST,WOL_MAGIC,VLAN_HWTSO,LINKSTATE>',
+			'	ether 00:25:22:c7:0a:8b',
+			'	inet 192.168.2.100 netmask 0xffffff00 broadcast 192.168.2.255',
+			'	media: Ethernet autoselect (100baseTX <full-duplex>)',
+			'	status: no carrier',
+			'	nd6 options=29<PERFORMNUD,IFDISABLED,AUTO_LINKLOCAL>'
+		}
+		-- Mock get_ifconfig_if_info()
+		netif.get_ifconfig_if_info = function()
+			return ifconfig_output
+		end
+		local status = netif.link_is_up("alc0")
+		lu.assertTrue(status)
+	end
+
 	function TestNetif:wlan_unit_from_parent()
 		local netif = require('netif')
 		local sysctl_output = {
