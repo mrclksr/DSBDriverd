@@ -116,7 +116,7 @@ next_matching(hints_file_t *hf, uint16_t vendor, uint16_t device)
 	int		d, v;
 	char		*str;
 	size_t		slen;
-	static char	kmod[32];
+	static char	kmod[64];
 	pnp_info_list_t	pi;
 
 	kmod[0] = '\0';
