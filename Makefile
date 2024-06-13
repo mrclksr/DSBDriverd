@@ -60,6 +60,9 @@ install: ${INSTALL_TARGETS}
 	if [ ! -d ${DESTDIR}${CFGDIR} ]; then \
 		mkdir -p ${DESTDIR}${CFGDIR}; \
 	fi
+	if [ ! -d ${DESTDIR}${MANDIR} ]; then \
+		mkdir -p ${DESTDIR}${MANDIR}; \
+	fi
 	${BSD_INSTALL_DATA} ${DBFILE} ${DESTDIR}${DBDIR}
 	${BSD_INSTALL_DATA} ${MANFILE} ${DESTDIR}${MANDIR}
 	if [ ! -f ${DESTDIR}${CFGDIR}/${CFGFILE} ]; then \
