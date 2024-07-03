@@ -114,9 +114,11 @@ function wlan_unit_from_parent(pdev)
 	end
 	for l in proc:lines() do
 		if string.match(l, "%%parent") and string.match(l, pdev) then
+			proc:close()
 			return tonumber(string.match(l, "net.wlan.([0-9]+)."))
 		end
 	end
+	proc:close()
 	return nil
 end
 
